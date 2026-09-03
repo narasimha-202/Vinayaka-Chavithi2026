@@ -1464,9 +1464,9 @@
 
         let appState = {
             themeMode: safeStorage.getItem('v2_theme') || 'dark',
-            authenticatedUser: null, isSuperUser: false, isPeopleUser: false,
+            authenticatedUser: null, authenticatedDisplayName: null, isSuperUser: false, isPeopleUser: false,
             config: JSON.parse(safeStorage.getItem('v2_config')) || {
-                festivalName: 'Vinayaka Chavithi', year: '2026', eventDate: '2026-09-14', receiptPrefix: 'SGPY2026-', upi: '', logoUrl: '', loginBgUrl: '', paymentQrUrl: '', donationQrUrl: '', mapEnabledForAdmin: true, downloadEnabledForAdmin: true, permissionPdfEnabledForAdmin: false, registrationEnabled: true, registrationWarningEnabled: true
+                festivalName: 'Sri Gowri Putra Youth', year: '2026', eventDate: '2026-09-14', receiptPrefix: 'SGPY2026-', upi: '', logoUrl: '', loginBgUrl: '', paymentQrUrl: '', donationQrUrl: '', mapEnabledForAdmin: true, downloadEnabledForAdmin: true, permissionPdfEnabledForAdmin: false, registrationEnabled: true, registrationWarningEnabled: true
             },
             admins: JSON.parse(safeStorage.getItem('v2_admins')) || [],
             donations: JSON.parse(safeStorage.getItem('v2_donations')) || [],
@@ -1539,10 +1539,10 @@
         // found (local cache, and re-persists so cloud sync picks it up
         // too) so existing installs pick up the rename instead of the
         // default being silently overridden by old stored/synced data.
-        const LEGACY_FESTIVAL_NAME = 'Nallabanda Youth';
-        const RENAMED_FESTIVAL_NAME = 'Vinayaka Chavithi';
+        const LEGACY_FESTIVAL_NAMES = ['Nallabanda Youth', 'Vinayaka Chavithi'];
+        const RENAMED_FESTIVAL_NAME = 'Sri Gowri Putra Youth';
         function migrateLegacyFestivalName() {
-            if (appState.config && appState.config.festivalName === LEGACY_FESTIVAL_NAME) {
+            if (appState.config && LEGACY_FESTIVAL_NAMES.includes(appState.config.festivalName)) {
                 appState.config.festivalName = RENAMED_FESTIVAL_NAME;
                 try { safeStorage.setItem('v2_config', JSON.stringify(appState.config)); } catch (e) { /* ignore */ }
                 return true;
@@ -2050,6 +2050,9 @@
                 if(profile.status!=='approved'||profile.approved!==true){await services.auth.signOut();if(profile.status==='rejected')alert('Your registration was rejected. Please contact an Admin or Super Admin.');else if(profile.status==='revoked')alert('Your access has been revoked. Please contact the Super Admin.');else alert('Your registration is still pending approval by an Admin or Super Admin.');return;}
                 accountMatch={username:profile.mobile,mobile:profile.mobile,authEmail:authEmailForMobile(profile.mobile),name:profile.name,isSuper:profile.role==='super',isPeople:profile.role==='people',uid:profile.id||cred.user.id};
                 appState.authenticatedUser=profile.mobile;
+                appState.authenticatedDisplayName=profile.name || profile.mobile;
+                const identityEl = document.getElementById('headerIdentityText');
+                if (identityEl) identityEl.textContent = `Welcome, ${appState.authenticatedDisplayName}`;
                 appState.admins=await loadApprovedAccountsFromCloud();
                 // First authenticated cloud pull; this prevents the secure RLS policies
                 // from exposing management data before a user is approved and logged in.
@@ -2707,12 +2710,17 @@
         // every successful cloud connection.
         async function migrateGalleryPhotosToCloud() {
             if (!cloudSync.enabled) return;
-            for (const item of appState.gallery) {
-                if (!item.url) continue;
-                const remote = await cloudSync.pullGalleryPhoto(item.id);
-                if (remote === null) {
-                    await cloudSync.pushGalleryPhoto(item.id, item.url);
+            const items = (appState.gallery || []).filter(item => item && item.url);
+            const worker = async function(item) {
+                try {
+                    const remote = await cloudSync.pullGalleryPhoto(item.id);
+                    if (remote === null) await cloudSync.pushGalleryPhoto(item.id, item.url);
+                } catch (e) {
+                    console.warn('Gallery migration skipped for', item.id, e);
                 }
+            };
+            for (let i = 0; i < items.length; i += 4) {
+                await Promise.all(items.slice(i, i + 4).map(worker));
             }
         }
 
@@ -3842,13 +3850,13 @@
                 }
 
         function applyRoleMenuVisibility() {
-                    const peopleOnlyHidden = ['menu-donations', 'menu-expenses', 'menu-prasadam', 'menu-events'];
+                    const peopleOnlyHidden = ['menu-donations', 'menu-expenses', 'menu-prasadam'];
                     peopleOnlyHidden.forEach(id => {
                         const el = document.getElementById(id);
                         if (el) el.classList.toggle('hidden', !!appState.isPeopleUser);
                     });
                     if (appState.isPeopleUser) {
-                        const currentHash = ['donations', 'expenses', 'prasadam', 'events', 'manageAdmins', 'auditLogs', 'notes', 'coreSettings'];
+                        const currentHash = ['donations', 'expenses', 'prasadam', 'manageAdmins', 'auditLogs', 'notes', 'coreSettings'];
                         const activePane = currentHash.find(v => {
                             const el = document.getElementById(`pane-${v}`);
                             return el && !el.classList.contains('hidden');
@@ -4331,7 +4339,7 @@
 
         function switchWorkspaceView(targetId) {
                     const views = ['dashboard', 'donations', 'expenses', 'committee', 'sponsors', 'prasadam', 'gallery', 'events', 'procession', 'manageAdmins', 'auditLogs', 'notes', 'coreSettings'];
-                    const peopleAllowedViews = ['dashboard', 'committee', 'sponsors', 'gallery', 'procession'];
+                    const peopleAllowedViews = ['dashboard', 'committee', 'sponsors', 'gallery', 'events', 'procession'];
                     // Nimarjan Route is gated by the "Map enable" Super Admin toggle
                     // for BOTH People and regular Admin logins now (Super Admin is
                     // always exempt). If it's off and someone lands on that pane,
@@ -4356,7 +4364,7 @@
                     // restricted items don't reappear every time the sidebar is
                     // navigated.
                     if (appState.isPeopleUser) {
-                        ['menu-donations', 'menu-expenses', 'menu-prasadam', 'menu-events'].forEach(id => {
+                        ['menu-donations', 'menu-expenses', 'menu-prasadam'].forEach(id => {
                             const el = document.getElementById(id);
                             if (el) el.classList.add('hidden');
                         });
@@ -4450,7 +4458,19 @@
                     </div>`).join('');
         }
 
+        let _syncDataMatricesScheduled = false;
         function syncDataMatrices() {
+            if (_syncDataMatricesScheduled) return;
+            _syncDataMatricesScheduled = true;
+            const run = function() {
+                _syncDataMatricesScheduled = false;
+                _syncDataMatricesNow();
+            };
+            if (window.requestAnimationFrame) requestAnimationFrame(run);
+            else setTimeout(run, 0);
+        }
+
+        function _syncDataMatricesNow() {
             // Keep global data refreshes lightweight. The procession map is a
             // heavy UI component and must NOT be rebuilt on every donation,
             // gallery, event, or realtime update. It is rendered only when the
@@ -4553,12 +4573,15 @@
                     </tr>
                 `).join('');
 
-            renderGalleryPane();
-
-            syncDonationsTable();
-            syncPrasadamTable();
-            syncEventsTable();
-            if (appState.isPeopleUser) {
+            const paneVisible = id => {
+                const el = document.getElementById('pane-' + id);
+                return !!el && !el.classList.contains('hidden');
+            };
+            if (paneVisible('gallery')) renderGalleryPane();
+            if (paneVisible('donations')) syncDonationsTable();
+            if (paneVisible('prasadam')) syncPrasadamTable();
+            if (paneVisible('events')) syncEventsTable();
+            if (appState.isPeopleUser && paneVisible('dashboard')) {
                 renderDashboardPeopleEvents();
                 renderDashboardSlideshowFrame();
             }
@@ -4980,7 +5003,9 @@
             });
 
             if (pendingGalleryReconciles.length) {
-                await Promise.all(pendingGalleryReconciles);
+                // Gallery images download in the background; don't block the app
+                // while dozens of photos are being reconciled.
+                Promise.allSettled(pendingGalleryReconciles).catch(function(){});
             }
 
             migrateLegacyFestivalName();
