@@ -2455,26 +2455,7 @@
                         </tfoot>
                     </table>
                 
-<script>
-// V2 compatibility bridge: expose workspace navigation to inline onclick handlers.
-(function(){
-  if (typeof window.switchWorkspaceView === 'function') return;
-  window.switchWorkspaceView = function(targetId){
-    const views = ['dashboard','donations','expenses','committee','sponsors','prasadam','gallery','events','procession','manageAdmins','auditLogs','notes','coreSettings'];
-    if (!views.includes(targetId)) return;
-    views.forEach(function(id){
-      const pane = document.getElementById('pane-' + id);
-      if (pane) pane.classList.toggle('hidden', id !== targetId);
-      const menu = document.getElementById('menu-' + id);
-      if (menu) menu.classList.toggle('bg-amber-500/10', id === targetId);
-    });
-    const title = document.getElementById('pageTitle');
-    if (title) title.textContent = targetId === 'dashboard' ? 'Dashboard' : targetId.replace(/([A-Z])/g,' $1').replace(/^./,function(c){return c.toUpperCase();});
-    if (typeof window.toggleMobileSidebar === 'function') window.toggleMobileSidebar(false);
-    try { if (window.lucide) lucide.createIcons(); } catch(e) {}
-  };
-})();
-</script>
+
 </body>
                 </html>
             `);
@@ -5016,6 +4997,24 @@
             if (e.persisted) catchUpCloudSyncOnForeground();
         });
 
+
+        // V2 compatibility bridge: expose workspace navigation to inline onclick handlers.
+        if (typeof window.switchWorkspaceView !== 'function') {
+            window.switchWorkspaceView = function(targetId) {
+                const views = ['dashboard','donations','expenses','committee','sponsors','prasadam','gallery','events','procession','manageAdmins','auditLogs','notes','coreSettings'];
+                if (!views.includes(targetId)) return;
+                views.forEach(function(id) {
+                    const pane = document.getElementById('pane-' + id);
+                    if (pane) pane.classList.toggle('hidden', id !== targetId);
+                    const menu = document.getElementById('menu-' + id);
+                    if (menu) menu.classList.toggle('bg-amber-500/10', id === targetId);
+                });
+                const title = document.getElementById('pageTitle');
+                if (title) title.textContent = targetId === 'dashboard' ? 'Dashboard' : targetId.replace(/([A-Z])/g, ' $1').replace(/^./, function(c) { return c.toUpperCase(); });
+                if (typeof window.toggleMobileSidebar === 'function') window.toggleMobileSidebar(false);
+                try { if (window.lucide) lucide.createIcons(); } catch (e) {}
+            };
+        }
         window.onload = function() {
             applyInitialThemeConfig();
             lucide.createIcons();
