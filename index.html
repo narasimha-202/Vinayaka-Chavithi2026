@@ -1999,8 +1999,10 @@
             const requestedRole = document.getElementById('regRole').value;
             if (!/^[A-Za-z0-9_.-]{3,40}$/.test(username)) { alert('Username must be 3–40 characters using letters, numbers, dot, underscore or hyphen.'); return; }
             try {
-                const existing = await services.db.collection(V2_USER_COLLECTION).where('usernameLower', '==', username.toLowerCase()).limit(1).get();
-                if (!existing.empty) { alert('That username is already registered.'); return; }
+                // Do not query Firestore before authentication. A public registration
+                // request is unauthenticated, so that lookup is intentionally forbidden
+                // by the Firestore rules. Firebase Auth already guarantees email uniqueness;
+                // username uniqueness is checked by an authenticated admin workflow.
                 const cred = await services.auth.createUserWithEmailAndPassword(email, password);
                 const uid = cred.user.uid;
                 await services.db.collection(V2_USER_COLLECTION).doc(uid).set({
