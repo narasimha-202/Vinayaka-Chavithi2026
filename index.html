@@ -1872,7 +1872,12 @@
                         if (error) throw error;
                         return {user:data.user};
                     },
-                    signOut: async function(){ const {error}=await supabaseClient.auth.signOut(); if(error) throw error; }
+                    signOut: async function(){ const {error}=await supabaseClient.auth.signOut(); if(error) throw error; },
+                    getMyProfile: async function(){
+                        const {data,error}=await supabaseClient.rpc('get_my_profile');
+                        if(error) throw error;
+                        return data || null;
+                    }
                 };
                 return {auth,db};
             } catch (err) {
@@ -1932,12 +1937,10 @@
             let accountMatch=null;
             try {
                 const cred=await services.auth.signInWithEmailAndPassword(authEmailForMobile(mobile),pass);
-                // The profile is stored with the Supabase Auth user ID as its primary key.
-                // Querying by mobile is blocked by RLS for a normal user, so always fetch
-                // the authenticated user's own profile by UID.
-                const profileDoc=await services.db.collection(V2_USER_COLLECTION).doc(cred.user.id).get();
-                if(!profileDoc.exists){await services.auth.signOut();alert('Your account profile was not found. Please register again or contact the Super Admin.');return;}
-                const profile=profileDoc.data()||{};
+                // Fetch the profile through the secure RPC. This avoids any client-side
+                // RLS/query mismatch while still restricting the result to auth.uid().
+                const profile=await services.auth.getMyProfile();
+                if(!profile){await services.auth.signOut();alert('Your account profile was not found for this Supabase account. Please contact the Super Admin.');return;}
                 if(profile.status!=='approved'||profile.approved!==true){await services.auth.signOut();if(profile.status==='rejected')alert('Your registration was rejected. Please contact an Admin or Super Admin.');else if(profile.status==='revoked')alert('Your access has been revoked. Please contact the Super Admin.');else alert('Your registration is still pending approval by an Admin or Super Admin.');return;}
                 accountMatch={username:profile.mobile,mobile:profile.mobile,authEmail:profile.authEmail,name:profile.name,isSuper:profile.role==='super',isPeople:profile.role==='people',uid:profile.uid||cred.user.id};
                 appState.admins=await loadApprovedAccountsFromCloud();
