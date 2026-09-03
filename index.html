@@ -1904,6 +1904,12 @@
                 const authEmail=authEmailForMobile(mobile);
                 const cred=await services.auth.createUserWithEmailAndPassword(authEmail,password);
                 const uid=cred.user.id;
+                // Supabase Email/Password must have an active session for the RLS policy to allow
+                // a newly registered user to create their own pending profile.
+                const sessionCheck = await supabaseClient.auth.getSession();
+                if (!sessionCheck.data || !sessionCheck.data.session) {
+                    throw new Error('Registration created the authentication account but no active session was returned. In Supabase, turn OFF Authentication → Providers → Email → Confirm email.');
+                }
                 await services.db.collection(V2_USER_COLLECTION).doc(uid).set({id:uid,uid,name,mobile,requested_role:requestedRole,role:'pending',status:'pending',approved:false,created_at:new Date().toISOString(),approved_at:null,approved_by:null});
                 await services.auth.signOut();
                 e.target.reset();closeRegistrationModal();
@@ -1924,7 +1930,7 @@
             try {
                 const snap=await services.db.collection(V2_USER_COLLECTION).where('status','==','approved').get();
                 const accounts=[];
-                snap.docs.forEach(d=>{const x=d.data()||{};accounts.push({username:x.mobile,mobile:x.mobile,authEmail:x.authEmail,name:x.name,isSuper:x.role==='super',isPeople:x.role==='people',uid:x.uid||d.id});});
+                snap.docs.forEach(d=>{const x=d.data()||{};accounts.push({username:x.mobile,mobile:x.mobile,authEmail:authEmailForMobile(x.mobile),name:x.name,isSuper:x.role==='super',isPeople:x.role==='people',uid:x.uid||d.id});});
                 appState.admins=accounts;safeStorage.setItem('v2_admins',JSON.stringify(accounts));return accounts;
             } catch(err){console.warn('Could not load approved accounts',err);return appState.admins||[];}
         }
@@ -1942,12 +1948,25 @@
                 const profile=await services.auth.getMyProfile(mobile);
                 if(!profile){await services.auth.signOut();alert('Your account profile was not found for this Supabase account. Please contact the Super Admin.');return;}
                 if(profile.status!=='approved'||profile.approved!==true){await services.auth.signOut();if(profile.status==='rejected')alert('Your registration was rejected. Please contact an Admin or Super Admin.');else if(profile.status==='revoked')alert('Your access has been revoked. Please contact the Super Admin.');else alert('Your registration is still pending approval by an Admin or Super Admin.');return;}
-                accountMatch={username:profile.mobile,mobile:profile.mobile,authEmail:profile.authEmail,name:profile.name,isSuper:profile.role==='super',isPeople:profile.role==='people',uid:profile.uid||cred.user.id};
+                accountMatch={username:profile.mobile,mobile:profile.mobile,authEmail:authEmailForMobile(profile.mobile),name:profile.name,isSuper:profile.role==='super',isPeople:profile.role==='people',uid:profile.id||cred.user.id};
+                appState.authenticatedUser=profile.mobile;
                 appState.admins=await loadApprovedAccountsFromCloud();
                 // First authenticated cloud pull; this prevents the secure RLS policies
                 // from exposing management data before a user is approved and logged in.
                 const syncResult=await cloudSync.pullAll();
-                if(syncResult.ok&&syncResult.data){_nyLastThemeConfigSnapshot=null;await applyCloudData(syncResult.data);}
+                if(syncResult.ok&&syncResult.data){
+                    _nyLastThemeConfigSnapshot=null;
+                    await applyCloudData(syncResult.data);
+                } else if (syncResult.ok && !syncResult.data && appState.isSuperUser) {
+                    // First-run V2 project: the database is empty. Seed it only after an
+                    // approved Super Admin has authenticated, never as an anonymous client.
+                    const seed = {};
+                    CLOUD_SYNC_KEYS.forEach(function(key){
+                        const val=safeStorage.getItem(key);
+                        if(val!==null && val!==undefined) seed[key]=val;
+                    });
+                    await cloudSync.pushAllLocal(seed);
+                }
                 if(cloudSync.enabled) cloudSync.listen(applyCloudData);
                 updateCloudSyncStatusUI('connected');
                 markCloudSyncReady();
@@ -2029,6 +2048,12 @@
                 syncDataMatrices();
                 alert(`Access revoked for ${username}.`);
             } catch(err) { alert('Could not revoke access: ' + (err.message || err)); }
+        }
+
+        function clearAuthenticatedState() {
+            appState.authenticatedUser = null;
+            appState.isSuperUser = false;
+            appState.isPeopleUser = false;
         }
 
         function changeAdminPassword(username) {
