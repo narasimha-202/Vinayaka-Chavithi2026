@@ -1978,6 +1978,25 @@
             }
             appState.isSuperUser=!!accountMatch.isSuper;
             appState.isPeopleUser=!accountMatch.isSuper&&!!accountMatch.isPeople;
+
+            // Complete the authentication transition. The V2 app container is
+            // intentionally hidden until a valid approved Supabase profile is
+            // found. The login portal must be removed here after successful
+            // authentication; otherwise login succeeds but the user remains
+            // visually stuck on the login screen.
+            const authPortal = document.getElementById('authPortal');
+            const appContainer = document.getElementById('appContainer');
+            if (authPortal) {
+                authPortal.classList.add('hidden');
+                authPortal.style.display = 'none';
+            }
+            if (appContainer) {
+                appContainer.classList.remove('hidden');
+                appContainer.style.display = '';
+            }
+            if (typeof applyAdminAccessControls === 'function') applyAdminAccessControls();
+            if (typeof switchWorkspaceView === 'function') switchWorkspaceView('dashboard');
+            if (typeof syncDataMatrices === 'function') syncDataMatrices();
             if(typeof loadPendingRegistrations==='function')loadPendingRegistrations();
             const status=document.getElementById('cfgLoginBgStatus');
             if(appState.config.loginBgUrl){status.innerText='✓ Saved — this image is now active on the login page.';status.classList.remove('hidden');}else status.classList.add('hidden');
