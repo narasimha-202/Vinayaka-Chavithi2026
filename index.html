@@ -11,6 +11,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
     <script>
@@ -225,24 +226,39 @@
             </div>
             <form onsubmit="executeAuthSession(event)" class="text-left space-y-4">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">USERNAME</label>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">EMAIL</label>
                     <div class="relative">
-                        <span class="absolute inset-y-0 left-3 flex items-center text-slate-400"><i data-lucide="user" class="w-4 h-4"></i></span>
-                        <input type="text" id="loginUser" required class="w-full bg-[#111827] border border-slate-700 text-sm rounded-xl pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-amber-500" placeholder="Username">
+                        <span class="absolute inset-y-0 left-3 flex items-center text-slate-400"><i data-lucide="mail" class="w-4 h-4"></i></span>
+                        <input type="email" id="loginUser" required autocomplete="username" class="w-full bg-[#111827] border border-slate-700 text-sm rounded-xl pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-amber-500" placeholder="you@example.com">
                     </div>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-400 mb-1.5">PASSWORD</label>
                     <div class="relative">
                         <span class="absolute inset-y-0 left-3 flex items-center text-slate-400"><i data-lucide="lock" class="w-4 h-4"></i></span>
-                        <input type="password" id="loginPass" required class="w-full bg-[#111827] border border-slate-700 text-sm rounded-xl pl-10 pr-10 py-2.5 text-white focus:outline-none focus:border-amber-500" placeholder="••••••••">
-                        <button type="button" onclick="togglePasswordVisibility('loginPass', this)" class="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-amber-400">
-                            <i data-lucide="eye" class="w-4 h-4"></i>
-                        </button>
+                        <input type="password" id="loginPass" required autocomplete="current-password" class="w-full bg-[#111827] border border-slate-700 text-sm rounded-xl pl-10 pr-10 py-2.5 text-white focus:outline-none focus:border-amber-500" placeholder="••••••••">
+                        <button type="button" onclick="togglePasswordVisibility('loginPass', this)" class="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-amber-400"><i data-lucide="eye" class="w-4 h-4"></i></button>
                     </div>
                 </div>
                 <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2.5 rounded-xl text-sm transition-all flex items-center justify-center gap-1">Sign In <i data-lucide="arrow-right" class="w-4 h-4"></i></button>
+                <button type="button" onclick="openRegistrationModal()" class="w-full border border-slate-600 hover:border-amber-500 text-slate-200 font-bold py-2.5 rounded-xl text-sm transition-all flex items-center justify-center gap-1">Create Account <i data-lucide="user-plus" class="w-4 h-4"></i></button>
+                <p class="text-[10px] text-slate-500 text-center">New accounts remain <b>Pending</b> until an Admin or Super Admin approves them.</p>
             </form>
+
+            <div id="registrationModal" class="hidden fixed inset-0 z-[70] bg-black/70 items-center justify-center px-4">
+                <div class="bg-[#1e293b] border border-slate-700 rounded-2xl p-6 w-full max-w-md text-left shadow-2xl">
+                    <div class="flex items-center justify-between mb-4"><div><h3 class="text-lg font-bold text-white">Create Account</h3><p class="text-[10px] text-slate-400">Registration requires approval before login.</p></div><button type="button" onclick="closeRegistrationModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+                    <form onsubmit="registerNewAccount(event)" class="space-y-3">
+                        <input id="regName" required maxlength="80" placeholder="Full name" class="w-full bg-[#111827] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
+                        <input id="regUsername" required maxlength="40" pattern="[A-Za-z0-9_.-]{3,40}" placeholder="Username" class="w-full bg-[#111827] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
+                        <input id="regEmail" required type="email" autocomplete="email" placeholder="Email address" class="w-full bg-[#111827] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
+                        <input id="regMobile" required maxlength="15" placeholder="Mobile number" class="w-full bg-[#111827] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
+                        <input id="regPassword" required minlength="6" type="password" autocomplete="new-password" placeholder="Password (minimum 6 characters)" class="w-full bg-[#111827] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
+                        <select id="regRole" class="w-full bg-[#111827] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"><option value="people">People — read-only access</option><option value="admin">Admin — requires approval</option></select>
+                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl">Submit Registration</button>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -728,7 +744,11 @@
                 </section>
 
                 <section id="pane-manageAdmins" class="space-y-6 hidden">
-                    <div class="bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 p-5 rounded-2xl space-y-4 shadow-sm">
+                    <div class="bg-white dark:bg-[#1e293b] border border-amber-300/40 dark:border-amber-500/30 p-5 rounded-2xl space-y-3 shadow-sm">
+                        <div class="flex items-center justify-between gap-3"><div><h3 class="text-sm font-bold text-amber-500 uppercase tracking-wider">Pending Registrations</h3><p class="text-[10px] text-slate-500 dark:text-slate-400 mt-1">Approve or reject new People/Admin registrations. Super Admins can also promote an approved account to Super Admin.</p></div><button onclick="loadPendingRegistrations()" class="text-xs font-bold border border-slate-300 dark:border-slate-700 px-3 py-2 rounded-xl">Refresh</button></div>
+                        <div id="pendingRegistrationsList" class="space-y-2"><div class="text-xs text-slate-500 italic">Loading…</div></div>
+                    </div>
+                    <div id="legacyAdminEnrollment" class="hidden bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 p-5 rounded-2xl space-y-4 shadow-sm">
                         <h3 class="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider text-indigo-500">Enroll New Admin Operator</h3>
                         <form id="adminCreationForm" onsubmit="submitAdminProfileRow(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                             <div>
@@ -1235,6 +1255,19 @@
         //    logo/QR/background settings across every device that opens
         //    this same file.
         // ============================================================
+        // Fresh V2 data namespace: no legacy browser data or old cloud collection is imported.
+        // This marker is only set once; future updates keep the new festival data.
+        (function isolateFreshV2Storage(){
+            const marker = 'vc2026_v2_approval_auth_v1';
+            if (localStorage.getItem('vc2026_v2_schema') !== marker) {
+                const keys = ['v2_config','v2_admins','v2_donations','v2_expenses','v2_members','v2_sponsors','v2_gallery','v2_logs','v2_notes','v2_procession','v2_permissionPdf','v2_prasadam','v2_events','v2_logo','v2_loginbg','v2_qr','v2_donationqr'];
+                keys.forEach(k => { try { localStorage.removeItem(k); } catch(e) {} });
+                localStorage.setItem('vc2026_v2_schema', marker);
+            }
+        })();
+        const V2_CLOUD_COLLECTION = 'vinayaka_chavithi_2026_v2';
+        const V2_USER_COLLECTION = 'vinayaka_chavithi_2026_users';
+
         const firebaseConfig = {
             apiKey: "AIzaSyD9WKcJ3HlWv4UCySgf4iMA71R_VLmUYk",
             authDomain: "vinayaka-chavithi-b277f.firebaseapp.com",
@@ -1245,7 +1278,7 @@
         };
 
         // Keys that get synced to the cloud (mirrors the localStorage keys below).
-        const CLOUD_SYNC_KEYS = ['v2_config', 'v2_admins', 'v2_donations', 'v2_expenses', 'v2_members', 'v2_sponsors', 'v2_gallery', 'v2_logs', 'v2_notes', 'v2_procession', 'v2_permissionPdf', 'v2_prasadam', 'v2_events', 'v2_logo', 'v2_loginbg', 'v2_qr', 'v2_donationqr'];
+        const CLOUD_SYNC_KEYS = ['v2_config', 'v2_donations', 'v2_expenses', 'v2_members', 'v2_sponsors', 'v2_gallery', 'v2_logs', 'v2_notes', 'v2_procession', 'v2_permissionPdf', 'v2_prasadam', 'v2_events', 'v2_logo', 'v2_loginbg', 'v2_qr', 'v2_donationqr'];
 
         const cloudSync = (function() {
             let db = null;
@@ -1280,7 +1313,7 @@
             // all types (images + donations + gallery + everything else)
             // competing for a single shared 1MB pool.
             function docRef(key) {
-                return db.collection('sgpy2026_management').doc(key);
+                return db.collection(V2_CLOUD_COLLECTION).doc(key);
             }
 
             // The old (pre-split) storage location — a single document holding
@@ -1289,7 +1322,7 @@
             // updated file: if none of the new per-key docs exist yet, we fall
             // back to reading this once and migrating it forward.
             function legacyDocRef() {
-                return db.collection('sgpy2026_management').doc('main');
+                return db.collection(V2_CLOUD_COLLECTION).doc('main');
             }
 
             async function pullAll() {
@@ -1392,7 +1425,7 @@
             // only stores a tiny INDEX (ids + timestamps, no image bytes), which
             // is what keeps it comfortably inside CLOUD_SYNC_KEYS' normal budget.
             function galleryPhotoDocRef(id) {
-                return db.collection('sgpy2026_management').doc('gallery_photo_' + id);
+                return db.collection(V2_CLOUD_COLLECTION).doc('gallery_photo_' + id);
             }
             function pushGalleryPhoto(id, dataUrl) {
                 if (!enabled) return Promise.resolve({ ok: false, reason: 'disabled' });
@@ -1517,9 +1550,7 @@
             config: JSON.parse(safeStorage.getItem('v2_config')) || {
                 festivalName: 'Vinayaka Chavithi', year: '2026', receiptPrefix: 'SGPY2026-', upi: '', logoUrl: '', loginBgUrl: '', paymentQrUrl: '', donationQrUrl: '', mapEnabledForAdmin: true, downloadEnabledForAdmin: true
             },
-            admins: JSON.parse(safeStorage.getItem('v2_admins')) || [
-                { username: 'Yaswanth', password: '7032678739', isSuper: true }
-            ],
+            admins: JSON.parse(safeStorage.getItem('v2_admins')) || [],
             donations: JSON.parse(safeStorage.getItem('v2_donations')) || [],
             expenses: JSON.parse(safeStorage.getItem('v2_expenses')) || [],
             members: JSON.parse(safeStorage.getItem('v2_members')) || [],
@@ -1930,20 +1961,108 @@
             lucide.createIcons();
         }
 
+        // ============================================================
+        // V2 AUTHENTICATION + APPROVAL WORKFLOW
+        // No usernames, passwords, or preloaded accounts are embedded in
+        // this HTML. Firebase Authentication owns credentials; Firestore
+        // stores only the registration/profile/approval metadata.
+        // ============================================================
+        function getAuthServices() {
+            try {
+                if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+                return { auth: firebase.auth(), db: firebase.firestore() };
+            } catch (err) {
+                console.error('Firebase authentication initialization failed', err);
+                return null;
+            }
+        }
+
+        function openRegistrationModal() {
+            const m = document.getElementById('registrationModal');
+            if (m) { m.classList.remove('hidden'); m.classList.add('flex'); }
+            if (window.lucide) lucide.createIcons();
+        }
+        function closeRegistrationModal() {
+            const m = document.getElementById('registrationModal');
+            if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
+        }
+
+        async function registerNewAccount(e) {
+            e.preventDefault();
+            const services = getAuthServices();
+            if (!services) { alert('Firebase is unavailable. Please check your internet connection.'); return; }
+            const name = document.getElementById('regName').value.trim();
+            const username = document.getElementById('regUsername').value.trim();
+            const email = document.getElementById('regEmail').value.trim().toLowerCase();
+            const mobile = document.getElementById('regMobile').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const requestedRole = document.getElementById('regRole').value;
+            if (!/^[A-Za-z0-9_.-]{3,40}$/.test(username)) { alert('Username must be 3–40 characters using letters, numbers, dot, underscore or hyphen.'); return; }
+            try {
+                const existing = await services.db.collection(V2_USER_COLLECTION).where('usernameLower', '==', username.toLowerCase()).limit(1).get();
+                if (!existing.empty) { alert('That username is already registered.'); return; }
+                const cred = await services.auth.createUserWithEmailAndPassword(email, password);
+                const uid = cred.user.uid;
+                await services.db.collection(V2_USER_COLLECTION).doc(uid).set({
+                    uid, name, username, usernameLower: username.toLowerCase(), email, mobile,
+                    requestedRole, role: 'pending', status: 'pending', approved: false,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(), approvedAt: null, approvedBy: null
+                });
+                await services.auth.signOut();
+                e.target.reset(); closeRegistrationModal();
+                alert('Registration submitted successfully. Your account is pending approval by an Admin or Super Admin.');
+            } catch (err) {
+                console.error(err);
+                const code = err && err.code ? err.code : '';
+                if (code === 'auth/email-already-in-use') alert('This email is already registered. Please sign in or use another email.');
+                else if (code === 'auth/weak-password') alert('Password is too weak. Use at least 6 characters.');
+                else alert('Registration failed: ' + (err.message || err));
+            }
+        }
+
+        async function loadApprovedAccountsFromCloud() {
+            const services = getAuthServices();
+            if (!services) return [];
+            try {
+                const snap = await services.db.collection(V2_USER_COLLECTION).where('status', '==', 'approved').get();
+                const accounts = [];
+                snap.forEach(d => {
+                    const x = d.data() || {};
+                    accounts.push({ username: x.username, email: x.email, name: x.name, mobile: x.mobile, isSuper: x.role === 'super', isPeople: x.role === 'people', uid: x.uid });
+                });
+                appState.admins = accounts;
+                safeStorage.setItem('v2_admins', JSON.stringify(accounts));
+                return accounts;
+            } catch (err) { console.warn('Could not load approved accounts', err); return appState.admins || []; }
+        }
+
         async function executeAuthSession(e) {
             e.preventDefault();
-            const user = document.getElementById('loginUser').value.trim();
-            const pass = document.getElementById('loginPass').value.trim();
-
-            const accountMatch = appState.admins.find(a => a.username.toLowerCase() === user.toLowerCase() && a.password && a.password === pass);
-
-            if (accountMatch) {
-                appState.isSuperUser = !!accountMatch.isSuper;
-                appState.isPeopleUser = !accountMatch.isSuper && !!accountMatch.isPeople;
-            } else {
-                alert("Invalid authorized credentials provided.");
+            const user = document.getElementById('loginUser').value.trim().toLowerCase();
+            const pass = document.getElementById('loginPass').value;
+            const services = getAuthServices();
+            if (!services) { alert('Firebase is unavailable. Please check your internet connection.'); return; }
+            let accountMatch = null;
+            try {
+                const cred = await services.auth.signInWithEmailAndPassword(user, pass);
+                const snap = await services.db.collection(V2_USER_COLLECTION).doc(cred.user.uid).get();
+                if (!snap.exists) { await services.auth.signOut(); alert('Your account profile was not found. Please register again or contact the Super Admin.'); return; }
+                const profile = snap.data() || {};
+                if (profile.status !== 'approved' || profile.approved !== true) {
+                    await services.auth.signOut();
+                    if (profile.status === 'rejected') alert('Your registration was rejected. Please contact an Admin or Super Admin.');
+                    else alert('Your registration is still pending approval by an Admin or Super Admin.');
+                    return;
+                }
+                accountMatch = { username: profile.username, email: profile.email, name: profile.name, isSuper: profile.role === 'super', isPeople: profile.role === 'people', uid: profile.uid };
+                appState.admins = await loadApprovedAccountsFromCloud();
+            } catch (err) {
+                console.warn('Login failed', err);
+                alert(err && err.code === 'auth/invalid-credential' ? 'Invalid email or password.' : ('Sign in failed: ' + (err.message || err)));
                 return;
             }
+            appState.isSuperUser = !!accountMatch.isSuper;
+            appState.isPeopleUser = !accountMatch.isSuper && !!accountMatch.isPeople;
 
             // Wait for the initial cloud sync to settle (capped at a few
             // seconds) so access-control decisions below — like whether the
@@ -1963,7 +2082,7 @@
                 }
             }
 
-            appState.authenticatedUser = user;
+            appState.authenticatedUser = accountMatch.name || accountMatch.username;
             document.getElementById('authPortal').classList.add('hidden');
             document.getElementById('appContainer').classList.remove('hidden');
             document.getElementById('headerIdentityText').innerText = `${appState.authenticatedUser} (${appState.isSuperUser ? 'Super Admin' : (appState.isPeopleUser ? 'People' : 'Admin')})`;
@@ -2638,6 +2757,7 @@
             applyAdminAccessControls();
             syncDataMatrices();
             toggleDonationQrPreview();
+            if (typeof loadPendingRegistrations === 'function') loadPendingRegistrations();
 
             const status = document.getElementById('cfgLoginBgStatus');
             if (appState.config.loginBgUrl) {
@@ -2660,51 +2780,72 @@
             alert("Parameters updated!");
         }
 
-        function submitAdminProfileRow(e) {
+        async function submitAdminProfileRow(e) {
             e.preventDefault();
-            if (!appState.isSuperUser) { alert("Access Denied."); return; }
-            const newU = document.getElementById('addAdminUser').value.trim();
-            const newP = document.getElementById('addAdminPass').value.trim();
-            const isSuper = document.getElementById('addAdminRoleSuper').checked;
-            const isPeople = document.getElementById('addAdminRolePeople').checked;
-
-            if (!newP) { alert("Password cannot be empty."); return; }
-            if (appState.admins.some(a => a.username.toLowerCase() === newU.toLowerCase())) { alert("An admin with that username already exists."); return; }
-
-            appState.admins.push({ username: newU, password: newP, isSuper: isSuper, isPeople: isPeople });
-            safeStorage.setItem('v2_admins', JSON.stringify(appState.admins));
-            appendPipelineLog(`Registered ${isSuper ? 'super-admin' : (isPeople ? 'people' : 'sub-admin')} user: ${newU}`);
-            e.target.reset();
-            syncDataMatrices();
+            alert('Admin accounts must be created through public registration and approved here. No passwords are stored in this application.');
         }
 
-        function removeAdminProfile(username) {
-            if (!appState.isSuperUser) { alert("Access Denied."); return; }
-            if (username.toLowerCase() === 'yaswanth') { alert("The primary super admin account cannot be removed."); return; }
-            showDeleteConfirm(`Confirm removal of admin operator: ${username}?`, function() {
-                appState.admins = appState.admins.filter(a => a.username !== username);
-                safeStorage.setItem('v2_admins', JSON.stringify(appState.admins));
-                appendPipelineLog(`Removed admin operator node: ${username}`);
+        async function loadPendingRegistrations() {
+            const box = document.getElementById('pendingRegistrationsList');
+            if (!box) return;
+            if (!appState.isSuperUser && !appState.authenticatedUser) { box.innerHTML = '<div class="text-xs text-rose-500">Access denied.</div>'; return; }
+            const services = getAuthServices();
+            if (!services) { box.innerHTML = '<div class="text-xs text-rose-500">Firebase unavailable.</div>'; return; }
+            try {
+                const snap = await services.db.collection(V2_USER_COLLECTION).where('status', '==', 'pending').get();
+                if (snap.empty) { box.innerHTML = '<div class="text-xs text-slate-500 italic py-2">No pending registrations.</div>'; return; }
+                box.innerHTML = snap.docs.map(d => {
+                    const x = d.data() || {};
+                    const role = x.requestedRole === 'admin' ? 'Admin' : 'People';
+                    const safe = JSON.stringify({uid:d.id, name:x.name||'', username:x.username||'', role:x.requestedRole||'people'}).replace(/'/g,'&#39;');
+                    return `<div class="border border-slate-200 dark:border-slate-700 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><div class="font-bold text-sm">${x.name || x.username}</div><div class="text-[10px] text-slate-500">@${x.username || ''} · ${x.email || ''} · ${x.mobile || ''}</div><span class="inline-block mt-1 text-[9px] uppercase font-bold px-2 py-1 rounded bg-amber-500/10 text-amber-500">Requested: ${role}</span></div><div class="flex gap-2"><button onclick='approveRegistration(${safe})' class="bg-emerald-600 text-white text-[10px] font-bold px-3 py-2 rounded-lg">Approve</button><button onclick='rejectRegistration(${safe})' class="bg-rose-600 text-white text-[10px] font-bold px-3 py-2 rounded-lg">Reject</button></div></div>`;
+                }).join('');
+            } catch (err) { box.innerHTML = `<div class="text-xs text-rose-500">Unable to load pending registrations: ${err.message || err}</div>`; }
+        }
+
+        async function approveRegistration(data) {
+            const services = getAuthServices(); if (!services) return;
+            try {
+                const role = data.role === 'admin' ? 'admin' : 'people';
+                await services.db.collection(V2_USER_COLLECTION).doc(data.uid).set({ status:'approved', approved:true, role, approvedAt:firebase.firestore.FieldValue.serverTimestamp(), approvedBy:appState.authenticatedUser }, {merge:true});
+                appendPipelineLog(`Approved registration: ${data.username} as ${role}`);
+                await loadApprovedAccountsFromCloud();
+                await loadPendingRegistrations();
+                refreshAdminTables();
+                alert(`${data.username} approved as ${role === 'admin' ? 'Admin' : 'People'}.`);
+            } catch(err) { alert('Approval failed: ' + (err.message || err)); }
+        }
+
+        async function rejectRegistration(data) {
+            const services = getAuthServices(); if (!services) return;
+            if (!confirm(`Reject registration for ${data.username}?`)) return;
+            try {
+                await services.db.collection(V2_USER_COLLECTION).doc(data.uid).set({ status:'rejected', approved:false, rejectedAt:firebase.firestore.FieldValue.serverTimestamp(), rejectedBy:appState.authenticatedUser }, {merge:true});
+                appendPipelineLog(`Rejected registration: ${data.username}`);
+                await loadPendingRegistrations();
+            } catch(err) { alert('Rejection failed: ' + (err.message || err)); }
+        }
+
+        async function refreshAdminTables() {
+            if (typeof syncDataMatrices === 'function') syncDataMatrices();
+        }
+
+        async function removeAdminProfile(username) {
+            if (!appState.isSuperUser) { alert('Access Denied.'); return; }
+            const services = getAuthServices(); if (!services) return;
+            const found = (appState.admins || []).find(a => a.username === username);
+            if (!found || !found.uid) { alert('Account record not found.'); return; }
+            if (!confirm(`Remove approved access for ${username}?`)) return;
+            try {
+                await services.db.collection(V2_USER_COLLECTION).doc(found.uid).set({ status:'revoked', approved:false, revokedAt:firebase.firestore.FieldValue.serverTimestamp(), revokedBy:appState.authenticatedUser }, {merge:true});
+                await loadApprovedAccountsFromCloud();
                 syncDataMatrices();
-            }, {
-                title: 'Remove this?',
-                confirmLabel: 'Remove'
-            });
+                alert(`Access revoked for ${username}.`);
+            } catch(err) { alert('Could not revoke access: ' + (err.message || err)); }
         }
 
         function changeAdminPassword(username) {
-            if (!appState.isSuperUser) { alert("Access Denied."); return; }
-            const admin = appState.admins.find(a => a.username === username);
-            if (!admin) return;
-
-            const newPass = prompt(`Set a new password for ${username}:`);
-            if (newPass === null) return;
-            if (!newPass.trim()) { alert("Password cannot be empty."); return; }
-
-            admin.password = newPass.trim();
-            safeStorage.setItem('v2_admins', JSON.stringify(appState.admins));
-            appendPipelineLog(`Password changed for admin: ${username}`);
-            alert(`Password updated for ${username}.`);
+            alert('Passwords are managed securely by Firebase Authentication. Use the Firebase password reset flow instead of storing passwords in this application.');
         }
 
         function submitDonationRecord(e) {
@@ -4315,11 +4456,7 @@
                     </td>
                     <td class="p-3 text-right">
                         <div class="flex gap-2 justify-end">
-                            <button onclick="changeAdminPassword('${a.username}')" class="text-amber-500 border border-amber-300 dark:border-amber-500/40 px-2 py-0.5 rounded text-[10px] uppercase font-bold inline-flex items-center gap-1"><i data-lucide="key-round" class="w-3 h-3"></i> Change Password</button>
-                            ${a.username.toLowerCase() === 'yaswanth'
-                                ? `<span class="italic text-slate-400 text-[10px] self-center">[ Protected ]</span>`
-                                : `<button onclick="removeAdminProfile('${a.username}')" class="text-rose-500 border border-rose-300 px-2 py-0.5 rounded text-[10px] uppercase font-bold inline-flex items-center gap-1"><i data-lucide="trash-2" class="w-3 h-3"></i> Remove</button>`
-                            }
+                            ${a.username === appState.authenticatedUser || a.isSuper ? `<span class="italic text-slate-400 text-[10px] self-center">[ Protected ]</span>` : `<button onclick="removeAdminProfile('${a.username}')" class="text-rose-500 border border-rose-300 px-2 py-0.5 rounded text-[10px] uppercase font-bold inline-flex items-center gap-1"><i data-lucide="trash-2" class="w-3 h-3"></i> Revoke</button>`}
                         </div>
                     </td>
                 </tr>
