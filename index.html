@@ -239,7 +239,7 @@
                     </div>
                 </div>
                 <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2.5 rounded-xl text-sm transition-all flex items-center justify-center gap-1">Sign In <i data-lucide="arrow-right" class="w-4 h-4"></i></button>
-                <button type="button" onclick="openRegistrationModal()" class="w-full border border-slate-600 hover:border-amber-500 text-slate-200 font-bold py-2.5 rounded-xl text-sm transition-all flex items-center justify-center gap-1">Create Account <i data-lucide="user-plus" class="w-4 h-4"></i></button>
+                <button type="button" id="registerAccountBtn" onclick="openRegistrationModal()" class="w-full border border-slate-600 hover:border-amber-500 text-slate-200 font-bold py-2.5 rounded-xl text-sm transition-all flex items-center justify-center gap-1">Create Account <i data-lucide="user-plus" class="w-4 h-4"></i></button>
                 <p class="text-[10px] text-slate-500 text-center">New accounts remain <b>Pending</b> until an Admin or Super Admin approves them.</p>
             </form>
 
@@ -251,6 +251,11 @@
                         <input id="regMobile" required maxlength="10" minlength="10" inputmode="numeric" pattern="[0-9]{10}" autocomplete="tel" placeholder="10-digit mobile number" class="w-full bg-[#111827] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
                         <input id="regPassword" required minlength="6" type="password" autocomplete="new-password" placeholder="Password (minimum 6 characters)" class="w-full bg-[#111827] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
                         <select id="regRole" class="w-full bg-[#111827] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"><option value="people">People — read-only access</option><option value="admin">Admin — requires approval</option></select>
+                        <div id="registrationWarningBox" class="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-[11px] text-amber-200">
+                            <div class="font-black flex items-center gap-2"><i data-lucide="triangle-alert" class="w-4 h-4"></i> Please check before registering</div>
+                            <p class="mt-1 text-amber-100/80">This account is only for authorized festival-system users. Devotees and visitors do not need an account. Accidental registrations will remain pending until reviewed.</p>
+                            <label class="mt-2 flex items-start gap-2 cursor-pointer"><input id="regWarningAck" type="checkbox" class="mt-0.5 accent-amber-500"><span>I understand this is a festival management account request.</span></label>
+                        </div>
                         <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl">Submit Registration</button>
                     </form>
                 </div>
@@ -858,7 +863,10 @@
                             <div>
                                 <label class="block font-bold text-slate-400 uppercase text-[10px] tracking-wider mb-1.5">Festival Countdown Target Date</label>
                                 <input type="date" id="cfgEventDate" class="w-full bg-[#111827] border border-slate-700 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500">
-                                <p class="text-[10px] text-slate-500 mt-1">Powers the countdown card on the Dashboard. Leave empty to hide it.</p>
+                                <div class="flex flex-wrap items-center gap-2 mt-1">
+                                    <p class="text-[10px] text-slate-500">Powers the live Vinayaka Chavithi countdown on the Dashboard.</p>
+                                    <button type="button" onclick="setKnownVinayakaDate()" class="text-[10px] text-amber-500 border border-amber-500/30 px-2 py-1 rounded-lg font-bold">Set 2026 Chavithi</button>
+                                </div>
                             </div>
                             <div>
                                 <label class="block font-bold text-slate-400 uppercase text-[10px] tracking-wider mb-1.5">Receipt Auto Prefix</label>
@@ -915,6 +923,20 @@
                         <div class="border-t border-slate-700/60 pt-5 space-y-3">
                             <div class="font-bold text-slate-400 flex items-center gap-1.5 uppercase text-[10px] tracking-wider"><i data-lucide="shield-check" class="w-3.5 h-3.5 text-indigo-500"></i> Admin Access Controls</div>
                             <p class="text-slate-400 text-[11px]">Control what regular Admins (non-Super Admin) can access. Super Admins always retain full access.</p>
+                            <label class="flex items-center justify-between gap-3 bg-[#111827] border border-slate-700 rounded-xl px-4 py-3 cursor-pointer">
+                                <span>
+                                    <span class="block font-bold text-white text-xs">Public registration enabled</span>
+                                    <span class="block text-slate-400 text-[10px] mt-0.5">Allow new users to request a People/Admin account from the login page.</span>
+                                </span>
+                                <input type="checkbox" id="cfgRegistrationEnabled" class="w-5 h-5 accent-emerald-500 shrink-0">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 bg-[#111827] border border-slate-700 rounded-xl px-4 py-3 cursor-pointer">
+                                <span>
+                                    <span class="block font-bold text-white text-xs">Registration warning enabled</span>
+                                    <span class="block text-slate-400 text-[10px] mt-0.5">Require the applicant to acknowledge that this is a festival management account.</span>
+                                </span>
+                                <input type="checkbox" id="cfgRegistrationWarningEnabled" class="w-5 h-5 accent-amber-500 shrink-0">
+                            </label>
                             <label class="flex items-center justify-between gap-3 bg-[#111827] border border-slate-700 rounded-xl px-4 py-3 cursor-pointer">
                                 <span>
                                     <span class="block font-bold text-white text-xs">Map enable</span>
@@ -1098,11 +1120,21 @@
                 </div>
                 <div>
                     <label class="block font-bold mb-1 text-slate-400">Phone Number</label>
-                    <input type="text" id="addMemPhone" required class="w-full bg-[#111827] border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none">
+                    <input type="text" id="addMemPhone" required inputmode="tel" maxlength="15" class="w-full bg-[#111827] border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none">
+                </div>
+                <div>
+                    <label class="block font-bold mb-1 text-slate-400">Responsibility / Designation</label>
+                    <select id="addMemRole" class="w-full bg-[#111827] border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none">
+                        <option>Committee Member</option><option>President</option><option>Vice President</option><option>Secretary</option><option>Joint Secretary</option><option>Treasurer</option><option>Event Coordinator</option><option>Volunteer Coordinator</option><option>Prasadam Coordinator</option><option>Decoration Coordinator</option><option>Immersion Coordinator</option>
+                    </select>
                 </div>
                 <div>
                     <label class="block font-bold mb-1 text-slate-400">Profile Photo <span id="memberAvatarKeepHint" class="hidden font-normal normal-case text-slate-500">(leave blank to keep current photo)</span></label>
-                    <input type="file" id="memberAvatarInput" accept="image/*" class="w-full bg-[#111827] border border-slate-700 text-slate-400 rounded-xl px-3 py-2 focus:outline-none text-[11px] file:mr-4 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-slate-700 file:text-white">
+                    <div class="flex items-center gap-3">
+                        <input type="file" id="memberAvatarInput" accept="image/jpeg,image/png,image/webp" onchange="previewMemberAvatar(event)" class="flex-1 w-full bg-[#111827] border border-slate-700 text-slate-400 rounded-xl px-3 py-2 focus:outline-none text-[11px] file:mr-4 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-slate-700 file:text-white">
+                        <img id="memberAvatarPreview" src="" class="hidden w-14 h-14 rounded-full object-cover border-2 border-amber-500 shrink-0">
+                    </div>
+                    <p class="text-[10px] text-slate-500 mt-1">Use a clear face photo. It will appear on the public Committee page.</p>
                 </div>
                 <button type="submit" id="memberSubmitBtn" class="w-full bg-amber-500 text-slate-950 font-bold py-2.5 rounded-xl uppercase tracking-widest mt-2">Add Member</button>
             </form>
@@ -1434,7 +1466,7 @@
             themeMode: safeStorage.getItem('v2_theme') || 'dark',
             authenticatedUser: null, isSuperUser: false, isPeopleUser: false,
             config: JSON.parse(safeStorage.getItem('v2_config')) || {
-                festivalName: 'Vinayaka Chavithi', year: '2026', receiptPrefix: 'SGPY2026-', upi: '', logoUrl: '', loginBgUrl: '', paymentQrUrl: '', donationQrUrl: '', mapEnabledForAdmin: true, downloadEnabledForAdmin: true
+                festivalName: 'Vinayaka Chavithi', year: '2026', eventDate: '2026-09-14', receiptPrefix: 'SGPY2026-', upi: '', logoUrl: '', loginBgUrl: '', paymentQrUrl: '', donationQrUrl: '', mapEnabledForAdmin: true, downloadEnabledForAdmin: true, permissionPdfEnabledForAdmin: false, registrationEnabled: true, registrationWarningEnabled: true
             },
             admins: JSON.parse(safeStorage.getItem('v2_admins')) || [],
             donations: JSON.parse(safeStorage.getItem('v2_donations')) || [],
@@ -1629,6 +1661,7 @@
             lucide.createIcons();
             renderDashboardQrCard();
             renderDashboardCountdown();
+            applyRegistrationAvailability();
         }
 
         function renderDashboardQrCard() {
@@ -1644,7 +1677,8 @@
         function renderDashboardCountdown() {
             const card = document.getElementById('dashboardCountdownCard');
             if (!card) return;
-            const dateStr = appState.config && appState.config.eventDate;
+            let dateStr = appState.config && appState.config.eventDate;
+            if (!dateStr && String(appState.config.year || '') === '2026') dateStr = '2026-09-14';
             if (!dateStr) { card.classList.add('hidden'); return; }
 
             // Treat the stored date as local midnight so the countdown lines
@@ -1915,8 +1949,32 @@
                 return null;
             }
         }
-        function openRegistrationModal() { const m=document.getElementById('registrationModal'); if(m){m.classList.remove('hidden');m.classList.add('flex');} if(window.lucide)lucide.createIcons(); }
+        function applyRegistrationAvailability() {
+            const enabled = appState.config.registrationEnabled !== false;
+            const btn = document.getElementById('registerAccountBtn');
+            if (btn) btn.classList.toggle('hidden', !enabled);
+            const box = document.getElementById('registrationWarningBox');
+            const ack = document.getElementById('regWarningAck');
+            if (box) box.classList.toggle('hidden', appState.config.registrationWarningEnabled === false);
+            if (ack) ack.required = appState.config.registrationWarningEnabled !== false;
+        }
+        function openRegistrationModal() {
+            if (appState.config.registrationEnabled === false) { alert('New account registration is currently disabled by the Super Admin.'); return; }
+            const m=document.getElementById('registrationModal');
+            const ack=document.getElementById('regWarningAck'); if(ack) ack.checked=false;
+            if(m){m.classList.remove('hidden');m.classList.add('flex');}
+            applyRegistrationAvailability();
+            if(window.lucide)lucide.createIcons();
+        }
         function closeRegistrationModal() { const m=document.getElementById('registrationModal'); if(m){m.classList.add('hidden');m.classList.remove('flex');} }
+        function setKnownVinayakaDate() {
+            const field = document.getElementById('cfgEventDate');
+            if (!field) return;
+            field.value = '2026-09-14';
+            const year = document.getElementById('cfgFestivalYear'); if (year) year.value = '2026';
+            const name = document.getElementById('cfgFestivalName'); if (name) name.value = 'Vinayaka Chavithi';
+            renderDashboardCountdown();
+        }
         function normalizeMobile(value) { return String(value||'').replace(/\D/g,'').slice(-10); }
         function authEmailForMobile(mobile) { return normalizeMobile(mobile) + '@vc2026.app'; }
 
@@ -1928,6 +1986,8 @@
             const mobile=normalizeMobile(document.getElementById('regMobile').value);
             const password=document.getElementById('regPassword').value;
             const requestedRole=document.getElementById('regRole').value;
+            if (appState.config.registrationEnabled === false) { alert('New account registration is currently disabled by the Super Admin.'); return; }
+            if (appState.config.registrationWarningEnabled !== false && !document.getElementById('regWarningAck').checked) { alert('Please confirm that you are requesting a festival management account.'); return; }
             if(!/^[0-9]{10}$/.test(mobile)){alert('Enter a valid 10-digit mobile number.');return;}
             if(password.length<6){alert('Password must be at least 6 characters.');return;}
             try {
@@ -2205,28 +2265,43 @@
         }
 
         function openAddMemberModal() {
-            if (!appState.isSuperUser) { alert("Access Denied."); return; }
+            if (!canManageCommittee()) { alert("Access Denied."); return; }
             document.getElementById('memberForm').reset();
             document.getElementById('editMemberId').value = '';
             document.getElementById('committeeModalTitle').innerText = 'Register Committee Member';
             document.getElementById('memberSubmitBtn').innerText = 'Add Member';
             document.getElementById('memberAvatarKeepHint').classList.add('hidden');
+            const preview = document.getElementById('memberAvatarPreview'); if (preview) { preview.src=''; preview.classList.add('hidden'); }
             toggleModalVisibility('committeeModal', true);
         }
 
         function triggerMemberEditView(id) {
-            if (!appState.isSuperUser) { alert("Access Denied."); return; }
+            if (!canManageCommittee()) { alert("Access Denied."); return; }
             const target = appState.members.find(m => m.id === id);
             if (!target) return;
             document.getElementById('memberForm').reset();
             document.getElementById('editMemberId').value = target.id;
             document.getElementById('addMemName').value = target.name;
             document.getElementById('addMemPhone').value = target.phone;
+            document.getElementById('addMemRole').value = target.role || 'Committee Member';
+            const prev = document.getElementById('memberAvatarPreview');
+            if (prev) { prev.src = target.avatar || ''; prev.classList.toggle('hidden', !target.avatar); }
 
             document.getElementById('committeeModalTitle').innerText = `Edit Member: ${target.name}`;
             document.getElementById('memberSubmitBtn').innerText = 'Save Changes';
             document.getElementById('memberAvatarKeepHint').classList.remove('hidden');
             toggleModalVisibility('committeeModal', true);
+        }
+
+        function previewMemberAvatar(event) {
+            const file = event && event.target && event.target.files ? event.target.files[0] : null;
+            const preview = document.getElementById('memberAvatarPreview');
+            if (!preview) return;
+            if (!file) { preview.classList.add('hidden'); preview.src = ''; return; }
+            if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { alert('Please choose a JPG, PNG, or WebP profile photo.'); event.target.value=''; preview.classList.add('hidden'); return; }
+            const reader = new FileReader();
+            reader.onload = function(){ preview.src = reader.result; preview.classList.remove('hidden'); };
+            reader.readAsDataURL(file);
         }
 
         function submitMemberRecord(e) {
@@ -2235,6 +2310,7 @@
             const editId = document.getElementById('editMemberId').value;
             const name = document.getElementById('addMemName').value.trim();
             const phone = document.getElementById('addMemPhone').value.trim();
+            const role = document.getElementById('addMemRole').value;
             const avatarFile = document.getElementById('memberAvatarInput').files[0];
             const formEl = e.target;
 
@@ -2246,6 +2322,7 @@
                 document.getElementById('committeeModalTitle').innerText = 'Register Committee Member';
                 document.getElementById('memberSubmitBtn').innerText = 'Add Member';
                 document.getElementById('memberAvatarKeepHint').classList.add('hidden');
+                const preview = document.getElementById('memberAvatarPreview'); if (preview) { preview.src=''; preview.classList.add('hidden'); }
                 syncDataMatrices();
             };
 
@@ -2255,13 +2332,14 @@
                         if (m.id === editId) {
                             m.name = name;
                             m.phone = phone;
+                            m.role = role;
                             if (avatarUrl) m.avatar = avatarUrl;
                         }
                         return m;
                     });
                     appendPipelineLog(`Modified committee member profile: ${name}`);
                 } else {
-                    appState.members.push({ id: 'MEM-' + Date.now().toString().slice(-3), name: name, phone: phone, avatar: avatarUrl });
+                    appState.members.push({ id: 'MEM-' + Date.now().toString().slice(-6), name: name, phone: phone, role: role, avatar: avatarUrl, addedBy: appState.authenticatedUser, addedAt: new Date().toISOString() });
                     appendPipelineLog(`Created new committee member profile: ${name}`);
                 }
                 finishSave();
@@ -3694,6 +3772,20 @@
 
 
 
+        // Keep older saved/cloud configurations compatible with newer controls.
+        // Undefined means the setting was never configured; preserve explicit false.
+        appState.config = Object.assign({
+            festivalName: 'Vinayaka Chavithi', year: '2026', eventDate: '2026-09-14',
+            receiptPrefix: 'SGPY2026-', upi: '', logoUrl: '', loginBgUrl: '',
+            paymentQrUrl: '', donationQrUrl: '', mapEnabledForAdmin: true,
+            downloadEnabledForAdmin: true, permissionPdfEnabledForAdmin: false,
+            registrationEnabled: true, registrationWarningEnabled: true
+        }, appState.config || {});
+
+        function canManageCommittee() {
+            return !!appState.authenticatedUser && !appState.isPeopleUser;
+        }
+
         // ===== Restored V2 workspace controls and UI helpers =====
         function appendPipelineLog(msg) {
                     const time = new Date().toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -3718,6 +3810,9 @@
                         if (pdfDashboardAllowed) renderDashboardPermissionPdfUI();
                     }
         
+                    const addMemberBtn = document.getElementById('addMemberBtn');
+                    if (addMemberBtn) addMemberBtn.classList.toggle('hidden', !canManageCommittee());
+                    applyRegistrationAvailability();
                     applyRoleMenuVisibility();
                     applyDashboardRoleView();
                 }
@@ -3948,6 +4043,8 @@
                     mapChk.checked = appState.config.mapEnabledForAdmin !== false;
                     document.getElementById('cfgDownloadEnabledForAdmin').checked = appState.config.downloadEnabledForAdmin !== false;
                     document.getElementById('cfgPermissionPdfEnabledForAdmin').checked = appState.config.permissionPdfEnabledForAdmin === true;
+                    document.getElementById('cfgRegistrationEnabled').checked = appState.config.registrationEnabled !== false;
+                    document.getElementById('cfgRegistrationWarningEnabled').checked = appState.config.registrationWarningEnabled !== false;
         
                     document.getElementById('cfgFestivalName').value = appState.config.festivalName;
                     document.getElementById('cfgFestivalYear').value = appState.config.year;
@@ -4137,6 +4234,8 @@
                     appState.config.mapEnabledForAdmin = document.getElementById('cfgMapEnabledForAdmin').checked;
                     appState.config.downloadEnabledForAdmin = document.getElementById('cfgDownloadEnabledForAdmin').checked;
                     appState.config.permissionPdfEnabledForAdmin = document.getElementById('cfgPermissionPdfEnabledForAdmin').checked;
+                    appState.config.registrationEnabled = document.getElementById('cfgRegistrationEnabled').checked;
+                    appState.config.registrationWarningEnabled = document.getElementById('cfgRegistrationWarningEnabled').checked;
         
                     // Logo, login background, dashboard-header QR, and donation-form QR
                     // each sync as their OWN Supabase row (v2_logo / v2_loginbg /
@@ -4417,6 +4516,7 @@
                     <div class="bg-white dark:bg-[#1e293b] rounded-lg border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center relative overflow-hidden w-[42vw] h-[42vw] max-w-[5cm] max-h-[5cm] sm:w-[5cm] sm:h-[5cm]" title="${m.name} — ${m.phone}">
                         <div class="w-full flex-1 overflow-hidden">${avatarContent}</div>
                         <div class="w-full text-center text-[11px] font-bold text-slate-800 dark:text-white truncate px-1 leading-tight pt-1.5">${m.name}</div>
+                        <div class="w-full text-center text-[9px] text-amber-500 font-bold truncate px-1">${m.role || 'Committee Member'}</div>
                         <div class="w-full text-center text-[9px] text-slate-400 font-mono truncate px-1">${m.phone}</div>
                         ${digits ? `
                             <div class="flex gap-1.5 pb-1.5 pt-1">
@@ -4424,7 +4524,7 @@
                                 <a href="https://wa.me/${waDigits}" target="_blank" rel="noopener" title="WhatsApp ${m.name}" class="bg-emerald-600 text-white p-1 rounded-full hover:bg-emerald-700 flex items-center justify-center"><svg viewBox="0 0 32 32" class="w-4 h-4" fill="currentColor"><path d="M16.01 3C9.38 3 4 8.36 4 15c0 2.28.63 4.42 1.72 6.25L4 29l7.94-1.66A11.9 11.9 0 0 0 16.01 27C22.64 27 28 21.64 28 15S22.64 3 16.01 3zm0 21.75c-1.9 0-3.7-.5-5.27-1.42l-.38-.22-4.53.95.98-4.4-.24-.4A9.7 9.7 0 0 1 5.25 15c0-5.95 4.83-10.78 10.76-10.78 5.94 0 10.76 4.83 10.76 10.78 0 5.95-4.82 10.75-10.76 10.75zm5.9-8.06c-.32-.16-1.9-.94-2.2-1.05-.3-.11-.51-.16-.73.16-.21.32-.84 1.05-1.03 1.26-.19.22-.38.24-.7.08-.32-.16-1.35-.5-2.57-1.6-.95-.85-1.59-1.9-1.78-2.22-.19-.32-.02-.49.14-.65.14-.14.32-.38.48-.57.16-.19.21-.32.32-.54.11-.22.05-.4-.03-.56-.08-.16-.73-1.76-1-2.4-.26-.63-.53-.55-.73-.56-.19-.01-.4-.01-.62-.01-.21 0-.56.08-.85.4-.29.32-1.12 1.1-1.12 2.67 0 1.57 1.15 3.09 1.31 3.3.16.22 2.26 3.45 5.48 4.84.77.33 1.36.53 1.83.68.77.24 1.47.21 2.02.13.62-.09 1.9-.78 2.17-1.53.27-.75.27-1.4.19-1.53-.08-.13-.29-.21-.6-.37z"/></svg></a>
                             </div>
                         ` : ''}
-                        ${appState.isSuperUser ? `
+                        ${canManageCommittee() ? `
                             <button onclick="triggerMemberEditView('${m.id}')" class="absolute top-1 left-1 bg-amber-500 text-slate-950 p-1 rounded-lg opacity-90 hover:opacity-100">
                                 <i data-lucide="pencil" class="w-3 h-3"></i>
                             </button>
