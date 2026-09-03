@@ -3642,6 +3642,633 @@
             updateProcessionMap();
         }
 
+
+
+        // ===== Restored V2 workspace controls and UI helpers =====
+        function appendPipelineLog(msg) {
+                    const time = new Date().toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    appState.logs.unshift(`[${time}] [${appState.authenticatedUser || 'SYSTEM'}] ${msg}`);
+                    safeStorage.setItem('v2_logs', JSON.stringify(appState.logs));
+                    const logBox = document.getElementById('terminalLogBox');
+                    if (logBox) logBox.innerHTML = appState.logs.map(l => `<div>${l}</div>`).join('');
+                }
+
+        function applyAdminAccessControls() {
+                    const mapAllowed = appState.isSuperUser || appState.config.mapEnabledForAdmin !== false;
+                    document.getElementById('menu-procession').classList.toggle('hidden', !mapAllowed);
+                    if (!mapAllowed && document.getElementById('pane-procession') && !document.getElementById('pane-procession').classList.contains('hidden')) {
+                        switchWorkspaceView('dashboard');
+                    }
+                    applyProcessionRoleUI();
+        
+                    const pdfDashboardAllowed = !appState.isPeopleUser && (appState.isSuperUser || appState.config.permissionPdfEnabledForAdmin === true);
+                    const pdfWrap = document.getElementById('dashboardPermissionPdfWrap');
+                    if (pdfWrap) {
+                        pdfWrap.classList.toggle('hidden', !pdfDashboardAllowed);
+                        if (pdfDashboardAllowed) renderDashboardPermissionPdfUI();
+                    }
+        
+                    applyRoleMenuVisibility();
+                    applyDashboardRoleView();
+                }
+
+        function applyDashboardRoleView() {
+                    const adminSection = document.getElementById('dashboardAdminSection');
+                    const peopleSection = document.getElementById('dashboardPeopleSection');
+                    const todayBadge = document.getElementById('dashboardTodayCollectionBadge');
+                    if (adminSection) adminSection.classList.toggle('hidden', !!appState.isPeopleUser);
+                    if (peopleSection) peopleSection.classList.toggle('hidden', !appState.isPeopleUser);
+                    if (todayBadge) todayBadge.classList.toggle('hidden', !!appState.isPeopleUser);
+                    if (appState.isPeopleUser) {
+                        renderDashboardPeopleEvents();
+                        startDashboardSlideshow();
+                    } else {
+                        stopDashboardSlideshow();
+                    }
+                }
+
+        function applyProcessionRoleUI() {
+                    const canManage = !!appState.isSuperUser;
+                    ['processionLiveGpsWrap', 'processionStopPicker', 'processionManageCard'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.classList.toggle('hidden', !canManage);
+                    });
+                    renderProcessionUI();
+                }
+
+        function applyRoleMenuVisibility() {
+                    const peopleOnlyHidden = ['menu-donations', 'menu-expenses', 'menu-prasadam', 'menu-events'];
+                    peopleOnlyHidden.forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.classList.toggle('hidden', !!appState.isPeopleUser);
+                    });
+                    if (appState.isPeopleUser) {
+                        const currentHash = ['donations', 'expenses', 'prasadam', 'events', 'manageAdmins', 'auditLogs', 'notes', 'coreSettings'];
+                        const activePane = currentHash.find(v => {
+                            const el = document.getElementById(`pane-${v}`);
+                            return el && !el.classList.contains('hidden');
+                        });
+                        if (activePane) switchWorkspaceView('dashboard');
+                    }
+                }
+
+        function clearAuditLogs() {
+                    if (!appState.isSuperUser) { alert("Access Denied."); return; }
+                    showDeleteConfirm("Clear all audit log entries? This cannot be undone.", function() {
+                        appState.logs = [];
+                        safeStorage.setItem('v2_logs', JSON.stringify(appState.logs));
+                        const logBox = document.getElementById('terminalLogBox');
+                        if (logBox) logBox.innerHTML = '';
+                        appendPipelineLog(`Audit log history cleared.`);
+                    }, {
+                        title: 'Clear this?',
+                        confirmLabel: 'Clear'
+                    });
+                }
+
+        function clearDonationQrConfig() {
+                    document.getElementById('cfgDonationQrUrl').value = '';
+                    const preview = document.getElementById('cfgDonationQrPreview');
+                    preview.src = '';
+                    preview.classList.add('hidden');
+                    const status = document.getElementById('cfgDonationQrStatus');
+                    status.innerText = '';
+                    status.classList.add('hidden');
+                }
+
+        function clearLoginBgConfig() {
+                    document.getElementById('cfgLoginBgUrl').value = '';
+                    const preview = document.getElementById('cfgLoginBgPreview');
+                    preview.src = '';
+                    preview.classList.add('hidden');
+                    const status = document.getElementById('cfgLoginBgStatus');
+                    status.innerText = '';
+                    status.classList.add('hidden');
+                }
+
+        function clearQrConfig() {
+                    document.getElementById('cfgQrUrl').value = '';
+                    const preview = document.getElementById('cfgQrPreview');
+                    preview.src = '';
+                    preview.classList.add('hidden');
+                    const status = document.getElementById('cfgQrStatus');
+                    status.innerText = '';
+                    status.classList.add('hidden');
+                }
+
+        function confirmLogout() {
+                    toggleModalVisibility('logoutConfirmModal', true);
+                }
+
+        function executeLogoutSession() {
+                    appState.authenticatedUser = null; appState.isSuperUser = false; appState.isPeopleUser = false;
+                    stopDashboardSlideshow();
+                    document.getElementById('authPortal').classList.remove('hidden');
+                    document.getElementById('appContainer').classList.add('hidden');
+                    document.getElementById('loginUser').value = '';
+                    document.getElementById('loginPass').value = '';
+                }
+
+        function handleDonationQrFileUpload(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+        
+                    const reader = new FileReader();
+                    reader.onload = function() {
+                        resizeImageDataUrl(reader.result, 2000, function(resizedDataUrl) {
+                            document.getElementById('cfgDonationQrUrl').value = resizedDataUrl;
+                            const preview = document.getElementById('cfgDonationQrPreview');
+                            preview.src = resizedDataUrl;
+                            preview.classList.remove('hidden');
+                            const status = document.getElementById('cfgDonationQrStatus');
+                            const approxKb = Math.round(resizedDataUrl.length / 1024);
+                            status.innerText = `✓ Loaded "${file.name}" (~${approxKb} KB after resizing) — not saved yet, click Update Parameters below.`;
+                            status.classList.remove('hidden');
+                        }, 900 * 1024, true);
+                    };
+                    reader.onerror = function() {
+                        alert("Could not read the selected image file. Please try a different image.");
+                    };
+                    reader.readAsDataURL(file);
+                }
+
+        function handleLoginBgFileUpload(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+        
+                    const reader = new FileReader();
+                    reader.onload = function() {
+                        resizeImageDataUrl(reader.result, 1920, function(resizedDataUrl) {
+                            document.getElementById('cfgLoginBgUrl').value = resizedDataUrl;
+                            const preview = document.getElementById('cfgLoginBgPreview');
+                            preview.src = resizedDataUrl;
+                            preview.classList.remove('hidden');
+                            const status = document.getElementById('cfgLoginBgStatus');
+                            const approxKb = Math.round(resizedDataUrl.length / 1024);
+                            status.innerText = `✓ Loaded "${file.name}" (~${approxKb} KB after resizing) — not saved yet, click Update Parameters below.`;
+                            status.classList.remove('hidden');
+                        }, 900 * 1024); // login background now has its own Firestore document (v2_loginbg) — no longer shares a budget with the other images
+                    };
+                    reader.onerror = function() {
+                        alert("Could not read the selected image file. Please try a different image.");
+                    };
+                    reader.readAsDataURL(file);
+                }
+
+        function handleLogoFileUpload(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+        
+                    const reader = new FileReader();
+                    reader.onload = function() {
+                        resizeImageDataUrl(reader.result, 512, function(resizedDataUrl) {
+                            document.getElementById('cfgLogoUrl').value = resizedDataUrl;
+                            const preview = document.getElementById('cfgLogoPreview');
+                            preview.src = resizedDataUrl;
+                            preview.classList.remove('hidden');
+                        }, 900 * 1024); // logo now has its own Firestore document (v2_logo) — no longer shares a budget with the other images
+                    };
+                    reader.onerror = function() {
+                        alert("Could not read the selected image file. Please try a different image.");
+                    };
+                    reader.readAsDataURL(file);
+                }
+
+        function handleQrFileUpload(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+        
+                    const reader = new FileReader();
+                    reader.onload = function() {
+                        // maxDim raised to 2000 and sharp-edge mode enabled: QR codes
+                        // are flat black/white, so they stay well under the byte
+                        // budget as lossless PNG even at this resolution. The QR now
+                        // also has its own Firestore document (v2_qr), so it no
+                        // longer shares a byte budget with the logo/background.
+                        resizeImageDataUrl(reader.result, 2000, function(resizedDataUrl) {
+                            document.getElementById('cfgQrUrl').value = resizedDataUrl;
+                            const preview = document.getElementById('cfgQrPreview');
+                            preview.src = resizedDataUrl;
+                            preview.classList.remove('hidden');
+                            const status = document.getElementById('cfgQrStatus');
+                            const approxKb = Math.round(resizedDataUrl.length / 1024);
+                            status.innerText = `✓ Loaded "${file.name}" (~${approxKb} KB after resizing) — not saved yet, click Update Parameters below.`;
+                            status.classList.remove('hidden');
+                        }, 900 * 1024, true);
+                    };
+                    reader.onerror = function() {
+                        alert("Could not read the selected image file. Please try a different image.");
+                    };
+                    reader.readAsDataURL(file);
+                }
+
+        function openPermissionPdf() {
+                    const doc = appState.permissionPdf;
+                    if (!doc || !doc.data) return;
+                    try {
+                        const byteChars = atob(doc.data.split(',')[1]);
+                        const byteNumbers = new Array(byteChars.length);
+                        for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+                        const blob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' });
+                        const url = URL.createObjectURL(blob);
+                        window.open(url, '_blank');
+                        setTimeout(() => URL.revokeObjectURL(url), 60000);
+                    } catch (e) {
+                        window.open(doc.data, '_blank');
+                    }
+                }
+
+        function removePermissionPdf() {
+                    if (!appState.isSuperUser) { alert("Access Denied."); return; }
+                    showDeleteConfirm("Remove the uploaded permission PDF?", function() {
+                        appState.permissionPdf = null;
+                        safeStorage.setItem('v2_permissionPdf', JSON.stringify(null));
+                        renderPermissionPdfUI();
+                        renderDashboardPermissionPdfUI();
+                        appendPipelineLog(`Permission PDF removed.`);
+                    }, {
+                        title: 'Remove this?',
+                        confirmLabel: 'Remove'
+                    });
+                }
+
+        function renderCoreSettingsForm() {
+                    const mapChk = document.getElementById('cfgMapEnabledForAdmin');
+                    if (!mapChk) return; // settings pane not in the DOM yet (e.g. pre-login)
+                    mapChk.checked = appState.config.mapEnabledForAdmin !== false;
+                    document.getElementById('cfgDownloadEnabledForAdmin').checked = appState.config.downloadEnabledForAdmin !== false;
+                    document.getElementById('cfgPermissionPdfEnabledForAdmin').checked = appState.config.permissionPdfEnabledForAdmin === true;
+        
+                    document.getElementById('cfgFestivalName').value = appState.config.festivalName;
+                    document.getElementById('cfgFestivalYear').value = appState.config.year;
+                    document.getElementById('cfgEventDate').value = appState.config.eventDate || '';
+                    document.getElementById('cfgReceiptPrefix').value = appState.config.receiptPrefix;
+                    document.getElementById('cfgUpiAddress').value = appState.config.upi;
+                    document.getElementById('cfgLogoUrl').value = appState.config.logoUrl || '';
+                    if (appState.config.logoUrl) {
+                        const preview = document.getElementById('cfgLogoPreview');
+                        preview.src = appState.config.logoUrl;
+                        preview.classList.remove('hidden');
+                    }
+                    document.getElementById('cfgLoginBgUrl').value = appState.config.loginBgUrl || '';
+                    if (appState.config.loginBgUrl) {
+                        const bgPreview = document.getElementById('cfgLoginBgPreview');
+                        bgPreview.src = appState.config.loginBgUrl;
+                        bgPreview.classList.remove('hidden');
+                    }
+                    document.getElementById('cfgQrUrl').value = appState.config.paymentQrUrl || '';
+                    if (appState.config.paymentQrUrl) {
+                        const qrPreview = document.getElementById('cfgQrPreview');
+                        qrPreview.src = appState.config.paymentQrUrl;
+                        qrPreview.classList.remove('hidden');
+                    }
+                    document.getElementById('cfgDonationQrUrl').value = appState.config.donationQrUrl || '';
+                    if (appState.config.donationQrUrl) {
+                        const donationQrPreview = document.getElementById('cfgDonationQrPreview');
+                        donationQrPreview.src = appState.config.donationQrUrl;
+                        donationQrPreview.classList.remove('hidden');
+                    }
+                }
+
+        function renderDashboardPeopleEvents() {
+                    const tbody = document.getElementById('dashboardPeopleEventsBody');
+                    if (!tbody) return;
+                    const sorted = [...(appState.events || [])].sort((a, b) => (a.date + a.session).localeCompare(b.date + b.session));
+                    tbody.innerHTML = sorted.length === 0 ?
+                        `<tr><td colspan="3" class="p-4 text-center opacity-40 italic">No events scheduled yet.</td></tr>` :
+                        sorted.map(ev => {
+                            const sessionBadge = ev.session === 'Morning'
+                                ? `<span class="bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded text-[10px] uppercase font-bold">Morning</span>`
+                                : `<span class="bg-indigo-500/10 text-indigo-500 px-2 py-0.5 rounded text-[10px] uppercase font-bold">Evening</span>`;
+                            return `
+                                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/20">
+                                    <td class="p-3 font-mono text-slate-400">${ev.date}</td>
+                                    <td class="p-3 font-bold text-slate-700 dark:text-white">${ev.name}</td>
+                                    <td class="p-3">${sessionBadge}</td>
+                                </tr>
+                            `;
+                        }).join('');
+                    lucide.createIcons();
+                }
+
+        function renderDashboardPermissionPdfUI() {
+                    const empty = document.getElementById('dashPermissionPdfEmpty');
+                    const card = document.getElementById('dashPermissionPdfCard');
+                    if (!empty || !card) return;
+                    const doc = appState.permissionPdf;
+                    if (doc) {
+                        document.getElementById('dashPermissionPdfName').textContent = doc.name || 'permission.pdf';
+                        const sizeKb = doc.size ? Math.round(doc.size / 1024) : null;
+                        const dateStr = doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+                        document.getElementById('dashPermissionPdfMeta').textContent = [sizeKb ? `${sizeKb} KB` : null, dateStr].filter(Boolean).join(' • ');
+                        empty.classList.add('hidden');
+                        card.classList.remove('hidden');
+                        card.classList.add('flex');
+                    } else {
+                        empty.classList.remove('hidden');
+                        card.classList.add('hidden');
+                        card.classList.remove('flex');
+                    }
+                }
+
+        function renderDashboardSlideshowFrame() {
+                    const img = document.getElementById('dashboardSlideshowImg');
+                    const empty = document.getElementById('dashboardSlideshowEmpty');
+                    if (!img || !empty) return;
+                    const photos = appState.gallery || [];
+                    if (photos.length === 0) {
+                        img.classList.add('hidden');
+                        empty.classList.remove('hidden');
+                        return;
+                    }
+                    if (dashboardSlideshowIndex >= photos.length) dashboardSlideshowIndex = 0;
+                    img.src = photos[dashboardSlideshowIndex].url;
+                    img.classList.remove('hidden');
+                    empty.classList.add('hidden');
+                }
+
+        function renderPermissionPdfUI() {
+                    const empty = document.getElementById('permissionPdfEmpty');
+                    const card = document.getElementById('permissionPdfCard');
+                    if (!empty || !card) return;
+                    const doc = appState.permissionPdf;
+                    if (doc && doc.data) {
+                        empty.classList.add('hidden');
+                        card.classList.remove('hidden');
+                        document.getElementById('permissionPdfName').textContent = doc.name || 'permission.pdf';
+                        const sizeKb = doc.size ? Math.round(doc.size / 1024) : null;
+                        const dateStr = doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+                        document.getElementById('permissionPdfMeta').textContent = [sizeKb ? `${sizeKb} KB` : null, dateStr].filter(Boolean).join(' • ');
+                    } else {
+                        empty.classList.remove('hidden');
+                        card.classList.add('hidden');
+                    }
+                    lucide.createIcons();
+                }
+
+        function resizeImageDataUrl(dataUrl, maxDim, callback, maxBytes, preserveSharpEdges) {
+                    maxBytes = maxBytes || 150 * 1024; // conservative default: this field is shared by 3 images
+                    const img = new Image();
+                    img.onload = function() {
+                        let { width, height } = img;
+                        if (width > maxDim || height > maxDim) {
+                            if (width > height) {
+                                height = Math.round(height * (maxDim / width));
+                                width = maxDim;
+                            } else {
+                                width = Math.round(width * (maxDim / height));
+                                height = maxDim;
+                            }
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        if (preserveSharpEdges) ctx.imageSmoothingEnabled = false;
+                        ctx.drawImage(img, 0, 0, width, height);
+        
+                        // The data URL string's character length IS its stored byte size
+                        // (data URLs are pure ASCII: "data:image/...;base64," + base64
+                        // chars), so no decode-ratio adjustment is needed or correct here.
+                        const sizeOf = (str) => str.length;
+        
+                        try {
+                            const pngUrl = canvas.toDataURL('image/png');
+                            if (sizeOf(pngUrl) <= maxBytes) {
+                                callback(pngUrl);
+                                return;
+                            }
+        
+                            // PNG too big (photo-like image) — re-encode as JPEG with a
+                            // white background (JPEG has no alpha channel) and step the
+                            // quality down until it fits the budget.
+                            const jpegCanvas = document.createElement('canvas');
+                            jpegCanvas.width = width;
+                            jpegCanvas.height = height;
+                            const jctx = jpegCanvas.getContext('2d');
+                            if (preserveSharpEdges) jctx.imageSmoothingEnabled = false;
+                            jctx.fillStyle = '#ffffff';
+                            jctx.fillRect(0, 0, width, height);
+                            jctx.drawImage(img, 0, 0, width, height);
+        
+                            let bestUrl = null;
+                            const qualities = [0.85, 0.7, 0.55, 0.4, 0.3, 0.2, 0.1];
+                            for (const q of qualities) {
+                                const jpegUrl = jpegCanvas.toDataURL('image/jpeg', q);
+                                bestUrl = jpegUrl; // keep the last (smallest) attempt as fallback
+                                if (sizeOf(jpegUrl) <= maxBytes) {
+                                    callback(jpegUrl);
+                                    return;
+                                }
+                            }
+                            // Even the lowest-quality JPEG didn't fit the budget — use it
+                            // anyway (still far smaller than the original) rather than
+                            // block the upload entirely.
+                            callback(bestUrl || pngUrl);
+                        } catch (e) {
+                            callback(dataUrl); // fallback: use the original if canvas export fails
+                        }
+                    };
+                    img.onerror = function() { callback(dataUrl); }; // fallback: not an image canvas can decode
+                    img.src = dataUrl;
+                }
+
+        function saveCoreSettingsConfig() {
+                    if (!appState.isSuperUser) { alert("Access Denied."); return; }
+                    appState.config.festivalName = document.getElementById('cfgFestivalName').value;
+                    appState.config.year = document.getElementById('cfgFestivalYear').value;
+                    appState.config.eventDate = document.getElementById('cfgEventDate').value;
+                    appState.config.receiptPrefix = document.getElementById('cfgReceiptPrefix').value;
+                    appState.config.upi = document.getElementById('cfgUpiAddress').value;
+                    appState.config.logoUrl = document.getElementById('cfgLogoUrl').value;
+                    appState.config.loginBgUrl = document.getElementById('cfgLoginBgUrl').value;
+                    appState.config.paymentQrUrl = document.getElementById('cfgQrUrl').value;
+                    appState.config.donationQrUrl = document.getElementById('cfgDonationQrUrl').value;
+                    appState.config.mapEnabledForAdmin = document.getElementById('cfgMapEnabledForAdmin').checked;
+                    appState.config.downloadEnabledForAdmin = document.getElementById('cfgDownloadEnabledForAdmin').checked;
+                    appState.config.permissionPdfEnabledForAdmin = document.getElementById('cfgPermissionPdfEnabledForAdmin').checked;
+        
+                    // Logo, login background, dashboard-header QR, and donation-form QR
+                    // each sync as their OWN Firestore document (v2_logo / v2_loginbg /
+                    // v2_qr / v2_donationqr) now, instead of being bundled together
+                    // inside v2_config. That means each image gets its own ~1MB
+                    // Firestore field budget rather than sharing one — so check each
+                    // individually here.
+                    const FIRESTORE_FIELD_LIMIT = 1048487;
+                    const SAFETY_MARGIN = 20 * 1024; // headroom for base64/JSON overhead
+                    const images = [
+                        ['Logo', appState.config.logoUrl],
+                        ['Login background', appState.config.loginBgUrl],
+                        ['Dashboard header QR image', appState.config.paymentQrUrl],
+                        ['Donation form QR image', appState.config.donationQrUrl],
+                    ];
+                    const oversized = images.filter(([, val]) => (val || '').length > FIRESTORE_FIELD_LIMIT - SAFETY_MARGIN);
+                    if (oversized.length) {
+                        const sizes = oversized.map(([label, val]) => `${label}: ~${Math.round(val.length / 1024)} KB`).join('\n');
+                        alert(`These image(s) are too large to sync to the cloud (limit ~1024 KB each, checked individually now):\n\n${sizes}\n\nRe-upload the image(s) above so they get compressed, then try again.`);
+                        return;
+                    }
+        
+                    // Each image gets its own storage key/document.
+                    safeStorage.setItem('v2_logo', appState.config.logoUrl || '');
+                    safeStorage.setItem('v2_loginbg', appState.config.loginBgUrl || '');
+                    safeStorage.setItem('v2_qr', appState.config.paymentQrUrl || '');
+                    safeStorage.setItem('v2_donationqr', appState.config.donationQrUrl || '');
+        
+                    // The rest of the settings (no images) stay in v2_config, now a
+                    // much smaller, comfortably-under-budget document.
+                    const configToStore = Object.assign({}, appState.config, {
+                        logoUrl: undefined, loginBgUrl: undefined, paymentQrUrl: undefined, donationQrUrl: undefined
+                    });
+                    safeStorage.setItem('v2_config', JSON.stringify(configToStore));
+                    appendPipelineLog(`Modified core environment settings.`);
+                    renderCoreSettingsForm();
+                    applyInitialThemeConfig();
+                    renderDashboardQrCard();
+                    renderDashboardCountdown();
+                    applyAdminAccessControls();
+                    syncDataMatrices();
+                    toggleDonationQrPreview();
+        
+                    const status = document.getElementById('cfgLoginBgStatus');
+                    if (appState.config.loginBgUrl) {
+                        status.innerText = `✓ Saved — this image is now active on the login page.`;
+                        status.classList.remove('hidden');
+                    } else {
+                        status.classList.add('hidden');
+                    }
+        
+                    const donationQrStatus = document.getElementById('cfgDonationQrStatus');
+                    if (donationQrStatus) {
+                        if (appState.config.donationQrUrl) {
+                            donationQrStatus.innerText = `✓ Saved — this QR now shows in the donation form when UPI is selected.`;
+                            donationQrStatus.classList.remove('hidden');
+                        } else {
+                            donationQrStatus.classList.add('hidden');
+                        }
+                    }
+        
+                    alert("Parameters updated!");
+                }
+
+        function saveNotes() {
+                    if (!appState.isSuperUser) { alert("Access Denied."); return; }
+                    const textarea = document.getElementById('notesTextarea');
+                    appState.notes = textarea.value;
+                    safeStorage.setItem('v2_notes', appState.notes);
+                    const btn = document.getElementById('saveNotesBtn');
+                    const originalHtml = btn.innerHTML;
+                    btn.innerHTML = '<i data-lucide="check" class="w-3 h-3"></i> Saved';
+                    lucide.createIcons();
+                    setTimeout(() => { btn.innerHTML = originalHtml; lucide.createIcons(); }, 1500);
+                    appendPipelineLog(`Notes updated.`);
+                }
+
+        function startDashboardSlideshow() {
+                    stopDashboardSlideshow();
+                    dashboardSlideshowIndex = 0;
+                    renderDashboardSlideshowFrame();
+                    dashboardSlideshowTimer = setInterval(function() {
+                        const len = (appState.gallery || []).length;
+                        if (len === 0) { renderDashboardSlideshowFrame(); return; }
+                        dashboardSlideshowIndex = (dashboardSlideshowIndex + 1) % len;
+                        renderDashboardSlideshowFrame();
+                    }, 3000);
+                }
+
+        function stopDashboardSlideshow() {
+                    if (dashboardSlideshowTimer) { clearInterval(dashboardSlideshowTimer); dashboardSlideshowTimer = null; }
+                }
+
+        function switchWorkspaceView(targetId) {
+                    const views = ['dashboard', 'donations', 'expenses', 'committee', 'sponsors', 'prasadam', 'gallery', 'events', 'procession', 'manageAdmins', 'auditLogs', 'notes', 'coreSettings'];
+                    const peopleAllowedViews = ['dashboard', 'committee', 'sponsors', 'gallery', 'procession'];
+                    // Nimarjan Route is gated by the "Map enable" Super Admin toggle
+                    // for BOTH People and regular Admin logins now (Super Admin is
+                    // always exempt). If it's off and someone lands on that pane,
+                    // bounce them to the dashboard just like any other blocked view.
+                    const mapAllowedForThisUser = appState.isSuperUser || appState.config.mapEnabledForAdmin !== false;
+                    if (targetId === 'procession' && !mapAllowedForThisUser) {
+                        targetId = 'dashboard';
+                    }
+                    if (appState.isPeopleUser && !peopleAllowedViews.includes(targetId)) {
+                        targetId = 'dashboard';
+                    }
+                    views.forEach(v => {
+                        document.getElementById(`pane-${v}`).classList.add('hidden');
+                        document.getElementById(`menu-${v}`).className = "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/40";
+                    });
+                    document.getElementById(`pane-${targetId}`).classList.remove('hidden');
+                    document.getElementById(`menu-${targetId}`).className = "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20";
+                    // The className resets above wipe out any 'hidden' class that
+                    // was previously applied to restricted menu buttons (People-only
+                    // hidden items, and the config-gated Nimarjan Route toggle for
+                    // both People and regular Admins) — re-apply them here so
+                    // restricted items don't reappear every time the sidebar is
+                    // navigated.
+                    if (appState.isPeopleUser) {
+                        ['menu-donations', 'menu-expenses', 'menu-prasadam', 'menu-events'].forEach(id => {
+                            const el = document.getElementById(id);
+                            if (el) el.classList.add('hidden');
+                        });
+                    }
+                    if (!mapAllowedForThisUser) {
+                        const el = document.getElementById('menu-procession');
+                        if (el) el.classList.add('hidden');
+                    }
+                    if (targetId === 'notes' && appState.isSuperUser) {
+                        document.getElementById('notesTextarea').value = appState.notes || '';
+                        renderPermissionPdfUI();
+                    }
+                    if (targetId === 'procession') {
+                        applyProcessionRoleUI();
+                        initProcessionMap();
+                        setTimeout(() => { if (processionMapInstance) processionMapInstance.invalidateSize(); }, 50);
+                    }
+                    toggleMobileSidebar(false);
+                }
+
+        function toggleMobileSidebar(show) {
+                    const sidebar = document.getElementById('sidebarNav');
+                    const backdrop = document.getElementById('sidebarBackdrop');
+                    if (show) {
+                        sidebar.classList.remove('-translate-x-full');
+                        backdrop.classList.remove('hidden');
+                    } else {
+                        sidebar.classList.add('-translate-x-full');
+                        backdrop.classList.add('hidden');
+                    }
+                }
+
+        function uploadPermissionPdf(event) {
+                    if (!appState.isSuperUser) { alert("Access Denied."); event.target.value = ''; return; }
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+                        alert("Please select a PDF file.");
+                        event.target.value = '';
+                        return;
+                    }
+                    if (file.size > 900 * 1024) {
+                        alert("This PDF is too large to store (max ~900 KB). Please use a smaller/compressed file.");
+                        event.target.value = '';
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = function() {
+                        appState.permissionPdf = { name: file.name, data: reader.result, size: file.size, uploadedAt: Date.now() };
+                        safeStorage.setItem('v2_permissionPdf', JSON.stringify(appState.permissionPdf));
+                        renderPermissionPdfUI();
+                        renderDashboardPermissionPdfUI();
+                        appendPipelineLog(`Permission PDF "${file.name}" uploaded.`);
+                    };
+                    reader.onerror = function() {
+                        alert("Could not read the selected PDF file. Please try again.");
+                    };
+                    reader.readAsDataURL(file);
+                    event.target.value = '';
+                }
+
         function syncDataMatrices() {
             renderProcessionUI();
             let collectionSum = 0; let pendingSum = 0; let todaySum = 0; let adminBreakdown = {};
