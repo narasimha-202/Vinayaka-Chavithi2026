@@ -204,6 +204,12 @@
     </script>
 
     <div id="dataNotifyContainer" class="fixed top-5 right-5 z-[75] flex flex-col gap-2 items-end pointer-events-none"></div>
+    <div id="appBootStatus" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-[80] hidden">
+        <div class="bg-slate-950/95 text-white border border-slate-700 rounded-full px-4 py-2 shadow-2xl flex items-center gap-2 text-[11px]">
+            <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+            <span id="appBootStatusText">Restoring your session…</span>
+        </div>
+    </div>
 
     <div id="welcomeToast" class="fixed top-5 right-5 z-[70] hidden">
         <div id="welcomeToastInner" class="bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-2 text-xs font-bold">
@@ -1278,7 +1284,14 @@
                     return false;
                 }
                 try {
-                    if (!supabaseClient) supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                    if (!supabaseClient) supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                        auth: {
+                            persistSession: true,
+                            autoRefreshToken: true,
+                            detectSessionInUrl: false,
+                            storageKey: 'sgpy-auth-session'
+                        }
+                    });
                     enabled = true;
                     return true;
                 } catch (err) {
@@ -1932,6 +1945,7 @@
                         return {user:data.user};
                     },
                     signOut: async function(){ const {error}=await supabaseClient.auth.signOut(); if(error) throw error; },
+                    getSession: async function(){ const {data,error}=await supabaseClient.auth.getSession(); if(error) throw error; return data && data.session ? data.session : null; },
                     getMyProfile: async function(mobile){
                         const {data,error}=await supabaseClient.rpc('get_my_profile_by_mobile',{p_mobile: mobile});
                         if(error) throw error;
@@ -2035,6 +2049,124 @@
             } catch(err){console.warn('Could not load approved accounts',err);return appState.admins||[];}
         }
 
+
+        // ============================================================
+        // V4 REALISTIC UX: CACHE-FIRST + SESSION RESTORE
+        // ============================================================
+        let _nyCloudPullInFlight = null;
+        let _nySessionRestoreInFlight = null;
+
+        function setBootStatus(message, show = true) {
+            const box = document.getElementById('appBootStatus');
+            const txt = document.getElementById('appBootStatusText');
+            if (!box || !txt) return;
+            txt.textContent = message || '';
+            box.classList.toggle('hidden', !show);
+        }
+        function hideBootStatusSoon(delay = 900) {
+            setTimeout(() => setBootStatus('', false), delay);
+        }
+        function showAuthenticatedShell() {
+            const authPortal = document.getElementById('authPortal');
+            const appContainer = document.getElementById('appContainer');
+            if (authPortal) { authPortal.classList.add('hidden'); authPortal.style.display = 'none'; }
+            if (appContainer) { appContainer.classList.remove('hidden'); appContainer.style.display = ''; }
+            if (typeof applyAdminAccessControls === 'function') applyAdminAccessControls();
+            if (typeof switchWorkspaceView === 'function') switchWorkspaceView('dashboard');
+            if (typeof syncDataMatrices === 'function') syncDataMatrices();
+        }
+
+        async function syncAuthoritativeCloudData(statusMessage) {
+            if (!cloudSync.enabled) return null;
+            if (_nyCloudPullInFlight) return _nyCloudPullInFlight;
+            _nyCloudPullInFlight = (async function() {
+                try {
+                    if (statusMessage) setBootStatus(statusMessage);
+                    const result = await cloudSync.pullAll();
+                    if (result.ok && result.data) {
+                        _nyLastThemeConfigSnapshot = null;
+                        await applyCloudData(result.data);
+                        updateCloudSyncStatusUI('connected');
+                        setBootStatus('All data is up to date');
+                        hideBootStatusSoon(1000);
+                    } else if (!result.ok) {
+                        updateCloudSyncStatusUI('error', result.error);
+                        setBootStatus('Offline mode • showing saved data');
+                        hideBootStatusSoon(2200);
+                    }
+                    return result;
+                } catch (err) {
+                    console.warn('Background cloud sync failed:', err);
+                    updateCloudSyncStatusUI('error', (err && err.message) || String(err));
+                    setBootStatus('Offline mode • showing saved data');
+                    hideBootStatusSoon(2200);
+                    return {ok:false, error:err};
+                } finally {
+                    _nyCloudPullInFlight = null;
+                }
+            })();
+            return _nyCloudPullInFlight;
+        }
+
+        async function restoreExistingSession() {
+            if (_nySessionRestoreInFlight) return _nySessionRestoreInFlight;
+            _nySessionRestoreInFlight = (async function() {
+                const services = getAuthServices();
+                if (!services) return false;
+                try {
+                    const session = await services.auth.getSession();
+                    if (!session || !session.user) return false;
+
+                    setBootStatus('Restoring your session…');
+                    const email = session.user.email || '';
+                    let mobile = '';
+                    const m = email.match(/^([0-9]{10})@/);
+                    if (m) mobile = m[1];
+
+                    let profile = null;
+                    if (mobile) profile = await services.auth.getMyProfile(mobile);
+                    if (!profile && session.user.user_metadata && session.user.user_metadata.mobile) {
+                        mobile = normalizeMobile(session.user.user_metadata.mobile);
+                        if (/^[0-9]{10}$/.test(mobile)) profile = await services.auth.getMyProfile(mobile);
+                    }
+
+                    if (!profile || profile.status !== 'approved' || profile.approved !== true) {
+                        try { await services.auth.signOut(); } catch (_) {}
+                        clearAuthenticatedState();
+                        return false;
+                    }
+
+                    appState.authenticatedUser = profile.mobile;
+                    appState.authenticatedDisplayName = profile.name || profile.mobile;
+                    appState.isSuperUser = profile.role === 'super';
+                    appState.isPeopleUser = !appState.isSuperUser && profile.role === 'people';
+
+                    const identityEl = document.getElementById('headerIdentityText');
+                    if (identityEl) identityEl.textContent = `Welcome, ${appState.authenticatedDisplayName}`;
+
+                    // Show the cached dashboard immediately.
+                    showAuthenticatedShell();
+
+                    // These are secondary admin-only refreshes and do not block the UI.
+                    loadApprovedAccountsFromCloud().catch(err => console.warn('Approved account refresh:', err));
+                    if (cloudSync.enabled) {
+                        cloudSync.listen(applyCloudData);
+                        cloudNotificationsArmed = true;
+                        syncAuthoritativeCloudData('Refreshing latest data…').catch(() => {});
+                    }
+                    setBootStatus('Signed in • refreshing latest data…');
+                    hideBootStatusSoon(1600);
+                    return true;
+                } catch (err) {
+                    console.warn('Session restore failed:', err);
+                    return false;
+                } finally {
+                    _nySessionRestoreInFlight = null;
+                }
+            })();
+            return _nySessionRestoreInFlight;
+        }
+
         async function executeAuthSession(e) {
             e.preventDefault();
             const mobile=normalizeMobile(document.getElementById('loginUser').value), pass=document.getElementById('loginPass').value;
@@ -2053,26 +2185,16 @@
                 appState.authenticatedDisplayName=profile.name || profile.mobile;
                 const identityEl = document.getElementById('headerIdentityText');
                 if (identityEl) identityEl.textContent = `Welcome, ${appState.authenticatedDisplayName}`;
-                appState.admins=await loadApprovedAccountsFromCloud();
-                // First authenticated cloud pull; this prevents the secure RLS policies
-                // from exposing management data before a user is approved and logged in.
-                const syncResult=await cloudSync.pullAll();
-                if(syncResult.ok&&syncResult.data){
-                    _nyLastThemeConfigSnapshot=null;
-                    await applyCloudData(syncResult.data);
-                } else if (syncResult.ok && !syncResult.data && appState.isSuperUser) {
-                    // First-run V2 project: the database is empty. Seed it only after an
-                    // approved Super Admin has authenticated, never as an anonymous client.
-                    const seed = {};
-                    CLOUD_SYNC_KEYS.forEach(function(key){
-                        const val=safeStorage.getItem(key);
-                        if(val!==null && val!==undefined) seed[key]=val;
-                    });
-                    await cloudSync.pushAllLocal(seed);
-                }
-                if(cloudSync.enabled) cloudSync.listen(applyCloudData);
-                updateCloudSyncStatusUI('connected');
+                // Cache-first UX: authentication completes the moment the
+                // approved profile is verified. Cloud data refreshes in background.
+                appState.admins = appState.admins || [];
+                showAuthenticatedShell();
                 markCloudSyncReady();
+                if (cloudSync.enabled) {
+                    cloudSync.listen(applyCloudData);
+                    cloudNotificationsArmed = true;
+                    syncAuthoritativeCloudData('Refreshing latest data…').catch(() => {});
+                }
             } catch(err){
                 console.warn('Login failed',err);
                 const msg=(err&&err.message)||String(err);
@@ -3913,14 +4035,25 @@
                     toggleModalVisibility('logoutConfirmModal', true);
                 }
 
-        function executeLogoutSession() {
-                    appState.authenticatedUser = null; appState.isSuperUser = false; appState.isPeopleUser = false;
+        async function executeLogoutSession() {
+                    try {
+                        if (cloudSync.enabled && supabaseClient) await supabaseClient.auth.signOut();
+                    } catch (err) { console.warn('Supabase sign-out failed:', err); }
+                    appState.authenticatedUser = null;
+                    appState.authenticatedDisplayName = null;
+                    appState.isSuperUser = false;
+                    appState.isPeopleUser = false;
                     stopDashboardSlideshow();
                     document.getElementById('authPortal').classList.remove('hidden');
+                    document.getElementById('authPortal').style.display = '';
                     document.getElementById('appContainer').classList.add('hidden');
+                    document.getElementById('appContainer').style.display = '';
                     document.getElementById('loginUser').value = '';
                     document.getElementById('loginPass').value = '';
-                }
+                    const identityEl = document.getElementById('headerIdentityText');
+                    if (identityEl) identityEl.textContent = '';
+                    setBootStatus('', false);
+        }
 
         function handleDonationQrFileUpload(event) {
                     const file = event.target.files[0];
@@ -5083,73 +5216,22 @@
             cloudSyncReadyDone = true;
             cloudSyncReadyResolve();
         }
-        setTimeout(function() { confirmSplashLogoAndRender(); markCloudSyncReady(); }, 4000);
+        setTimeout(function() { confirmSplashLogoAndRender(); markCloudSyncReady(); }, 1400);
 
         async function initCloudSync() {
             const ready = cloudSync.init();
-            if (!ready) { updateCloudSyncStatusUI('not-configured'); confirmSplashLogoAndRender(); markCloudSyncReady(); return; }
-
-            try {
-                const result = await cloudSync.pullAll();
-                if (!result.ok) {
-                    // The read itself failed (offline blip, etc). Do NOT seed/push —
-                    // this device's local cache may be stale, and pushing it would
-                    // silently overwrite whatever the real cloud data is. Fall back
-                    // to local-only for this session and let the listener pick up
-                    // the real data once connectivity returns.
-                    console.warn('Cloud pull was inconclusive — using local data for now without pushing, to avoid overwriting cloud data.');
-                    updateCloudSyncStatusUI('error', result.error);
-                    cloudSync.listen(applyCloudData);
-                    cloudNotificationsArmed = true;
-                    confirmSplashLogoAndRender();
-                    // Do NOT markCloudSyncReady() here: the local cache we're
-                    // falling back to may be stale (or, on a fresh device,
-                    // just the hardcoded defaults — which include
-                    // mapEnabledForAdmin: true). If a login happens right
-                    // now, executeAuthSession's access-control check would
-                    // treat this inconclusive fallback as "synced" and could
-                    // briefly show the Nimarjan Route menu to a regular admin
-                    // even though a super admin has it switched off. Leave
-                    // cloudSyncReadyPromise unresolved so login keeps waiting;
-                    // the listener above will apply real data as soon as it
-                    // arrives, and the global 4s timeout (see window.onload)
-                    // still caps the wait for devices with no network at all.
-                    return;
-                }
-                if (result.data) {
-                    // We're about to apply the authoritative cloud values — reset the
-                    // snapshot guard so applyCloudData's own applyInitialThemeConfig()
-                    // call (below) actually re-renders instead of skipping as a no-op.
-                    _nyLastThemeConfigSnapshot = null;
-                    await applyCloudData(result.data);
-                } else {
-                    // Confirmed: no cloud document exists yet — seed it with this device's current local data
-                    const seed = {};
-                    CLOUD_SYNC_KEYS.forEach(function(key) {
-                        const val = safeStorage.getItem(key);
-                        if (val !== null && val !== undefined) seed[key] = val;
-                    });
-                    cloudSync.pushAllLocal(seed);
-                    confirmSplashLogoAndRender();
-                }
-                // Do not scan every gallery photo against Supabase during every
-                // startup. New uploads are pushed immediately; legacy cached photos
-                // are reconciled when their index is loaded. This keeps login and tab
-                // navigation responsive even with many gallery images.
-                updateCloudSyncStatusUI('connected');
-                cloudSync.listen(applyCloudData);
-                cloudNotificationsArmed = true;
-                markCloudSyncReady();
-            } catch (err) {
-                console.warn('Cloud sync initialization failed:', err);
-                const label = (err && (err.code || err.message)) ? `${err.code || ''}${err.code && err.message ? ': ' : ''}${err.message || ''}` : String(err);
-                updateCloudSyncStatusUI('error', label);
+            if (!ready) {
+                updateCloudSyncStatusUI('not-configured');
                 confirmSplashLogoAndRender();
-                // Same reasoning as the inconclusive-pull branch above: don't
-                // mark ready with data we know may be stale/default. Let the
-                // global 4s timeout in window.onload be the only thing that
-                // caps the login wait in this failure case.
+                markCloudSyncReady();
+                return;
             }
+
+            // Local cached data is already in appState. Let the page become usable
+            // immediately, then restore a persisted Supabase session in background.
+            confirmSplashLogoAndRender();
+            markCloudSyncReady();
+            restoreExistingSession().catch(err => console.warn('Startup session restore:', err));
         }
 
         // ---- Catch-up sync on tab/app foreground ----
@@ -5165,11 +5247,12 @@
         // the browser to notice the connection dropped.
         async function catchUpCloudSyncOnForeground() {
             if (!cloudSync.enabled) return;
+            if (!appState.authenticatedUser) {
+                await restoreExistingSession();
+                return;
+            }
             try {
-                const result = await cloudSync.pullAll();
-                if (result.ok && result.data) {
-                    await applyCloudData(result.data);
-                }
+                await syncAuthoritativeCloudData('Checking for updates…');
             } catch (err) {
                 console.warn('Foreground catch-up sync failed:', err);
             }
@@ -5244,6 +5327,10 @@
                 const remaining = Math.max(0, minSplashMs - (Date.now() - splashStart));
                 setTimeout(hideSplash, remaining);
             });
+            setTimeout(function() {
+                const splash = document.getElementById('welcomeSplash');
+                if (splash && splash.style.display !== 'none') hideSplash();
+            }, 1700);
         };
     </script>
 </body>
