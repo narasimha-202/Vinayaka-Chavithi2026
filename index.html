@@ -226,10 +226,10 @@
             </div>
             <form onsubmit="executeAuthSession(event)" class="text-left space-y-4">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">EMAIL</label>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">MOBILE NUMBER</label>
                     <div class="relative">
-                        <span class="absolute inset-y-0 left-3 flex items-center text-slate-400"><i data-lucide="mail" class="w-4 h-4"></i></span>
-                        <input type="email" id="loginUser" required autocomplete="username" class="w-full bg-[#111827] border border-slate-700 text-sm rounded-xl pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-amber-500" placeholder="you@example.com">
+                        <span class="absolute inset-y-0 left-3 flex items-center text-slate-400"><i data-lucide="phone" class="w-4 h-4"></i></span>
+                        <input type="tel" id="loginUser" required inputmode="numeric" autocomplete="tel" maxlength="10" pattern="[0-9]{10}" class="w-full bg-[#111827] border border-slate-700 text-sm rounded-xl pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-amber-500" placeholder="10-digit mobile number">
                     </div>
                 </div>
                 <div>
@@ -250,9 +250,7 @@
                     <div class="flex items-center justify-between mb-4"><div><h3 class="text-lg font-bold text-white">Create Account</h3><p class="text-[10px] text-slate-400">Registration requires approval before login.</p></div><button type="button" onclick="closeRegistrationModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button></div>
                     <form onsubmit="registerNewAccount(event)" class="space-y-3">
                         <input id="regName" required maxlength="80" placeholder="Full name" class="w-full bg-[#111827] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
-                        <input id="regUsername" required maxlength="40" pattern="[A-Za-z0-9_.-]{3,40}" placeholder="Username" class="w-full bg-[#111827] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
-                        <input id="regEmail" required type="email" autocomplete="email" placeholder="Email address" class="w-full bg-[#111827] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
-                        <input id="regMobile" required maxlength="15" placeholder="Mobile number" class="w-full bg-[#111827] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
+                        <input id="regMobile" required maxlength="10" minlength="10" inputmode="numeric" pattern="[0-9]{10}" autocomplete="tel" placeholder="10-digit mobile number" class="w-full bg-[#111827] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
                         <input id="regPassword" required minlength="6" type="password" autocomplete="new-password" placeholder="Password (minimum 6 characters)" class="w-full bg-[#111827] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
                         <select id="regRole" class="w-full bg-[#111827] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"><option value="people">People — read-only access</option><option value="admin">Admin — requires approval</option></select>
                         <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl">Submit Registration</button>
@@ -1987,27 +1985,34 @@
             if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
         }
 
+        function normalizeMobile(value) {
+            return String(value || '').replace(/\D/g, '').slice(-10);
+        }
+
+        // Firebase Email/Password is used internally with a deterministic,
+        // non-user-facing identity derived from the mobile number. Users never
+        // enter or see an email address; their public login is mobile + password.
+        function authEmailForMobile(mobile) {
+            return normalizeMobile(mobile) + '@mobile.vinayaka-chavithi-202.local';
+        }
+
         async function registerNewAccount(e) {
             e.preventDefault();
             const services = getAuthServices();
             if (!services) { alert('Firebase is unavailable. Please check your internet connection.'); return; }
             const name = document.getElementById('regName').value.trim();
-            const username = document.getElementById('regUsername').value.trim();
-            const email = document.getElementById('regEmail').value.trim().toLowerCase();
-            const mobile = document.getElementById('regMobile').value.trim();
+            const mobile = normalizeMobile(document.getElementById('regMobile').value);
             const password = document.getElementById('regPassword').value;
             const requestedRole = document.getElementById('regRole').value;
-            if (!/^[A-Za-z0-9_.-]{3,40}$/.test(username)) { alert('Username must be 3–40 characters using letters, numbers, dot, underscore or hyphen.'); return; }
+            if (!/^[0-9]{10}$/.test(mobile)) { alert('Enter a valid 10-digit mobile number.'); return; }
+            if (password.length < 6) { alert('Password must be at least 6 characters.'); return; }
             try {
-                // Do not query Firestore before authentication. A public registration
-                // request is unauthenticated, so that lookup is intentionally forbidden
-                // by the Firestore rules. Firebase Auth already guarantees email uniqueness;
-                // username uniqueness is checked by an authenticated admin workflow.
-                const cred = await services.auth.createUserWithEmailAndPassword(email, password);
+                const authEmail = authEmailForMobile(mobile);
+                const cred = await services.auth.createUserWithEmailAndPassword(authEmail, password);
                 const uid = cred.user.uid;
                 await services.db.collection(V2_USER_COLLECTION).doc(uid).set({
-                    uid, name, username, usernameLower: username.toLowerCase(), email, mobile,
-                    requestedRole, role: 'pending', status: 'pending', approved: false,
+                    uid, name, username: mobile, usernameLower: mobile, mobile,
+                    authEmail, requestedRole, role: 'pending', status: 'pending', approved: false,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(), approvedAt: null, approvedBy: null
                 });
                 await services.auth.signOut();
@@ -2016,8 +2021,9 @@
             } catch (err) {
                 console.error(err);
                 const code = err && err.code ? err.code : '';
-                if (code === 'auth/email-already-in-use') alert('This email is already registered. Please sign in or use another email.');
+                if (code === 'auth/email-already-in-use') alert('This mobile number is already registered. Please sign in or contact an Admin.');
                 else if (code === 'auth/weak-password') alert('Password is too weak. Use at least 6 characters.');
+                else if (code === 'permission-denied') alert('Registration was blocked by Firebase security rules. Please update the Firestore rules for the V2 registration collection.');
                 else alert('Registration failed: ' + (err.message || err));
             }
         }
@@ -2030,7 +2036,7 @@
                 const accounts = [];
                 snap.forEach(d => {
                     const x = d.data() || {};
-                    accounts.push({ username: x.username, email: x.email, name: x.name, mobile: x.mobile, isSuper: x.role === 'super', isPeople: x.role === 'people', uid: x.uid });
+                    accounts.push({ username: x.username || x.mobile, mobile: x.mobile, authEmail: x.authEmail, name: x.name, isSuper: x.role === 'super', isPeople: x.role === 'people', uid: x.uid });
                 });
                 appState.admins = accounts;
                 safeStorage.setItem('v2_admins', JSON.stringify(accounts));
@@ -2040,8 +2046,10 @@
 
         async function executeAuthSession(e) {
             e.preventDefault();
-            const user = document.getElementById('loginUser').value.trim().toLowerCase();
+            const mobile = normalizeMobile(document.getElementById('loginUser').value);
             const pass = document.getElementById('loginPass').value;
+            if (!/^[0-9]{10}$/.test(mobile)) { alert('Enter your 10-digit mobile number.'); return; }
+            const user = authEmailForMobile(mobile);
             const services = getAuthServices();
             if (!services) { alert('Firebase is unavailable. Please check your internet connection.'); return; }
             let accountMatch = null;
@@ -2056,11 +2064,11 @@
                     else alert('Your registration is still pending approval by an Admin or Super Admin.');
                     return;
                 }
-                accountMatch = { username: profile.username, email: profile.email, name: profile.name, isSuper: profile.role === 'super', isPeople: profile.role === 'people', uid: profile.uid };
+                accountMatch = { username: profile.username || profile.mobile, mobile: profile.mobile, authEmail: profile.authEmail, name: profile.name, isSuper: profile.role === 'super', isPeople: profile.role === 'people', uid: profile.uid };
                 appState.admins = await loadApprovedAccountsFromCloud();
             } catch (err) {
                 console.warn('Login failed', err);
-                alert(err && err.code === 'auth/invalid-credential' ? 'Invalid email or password.' : ('Sign in failed: ' + (err.message || err)));
+                alert(err && (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') ? 'Invalid mobile number or password.' : ('Sign in failed: ' + (err.message || err)));
                 return;
             }
             appState.isSuperUser = !!accountMatch.isSuper;
