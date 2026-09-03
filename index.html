@@ -1206,11 +1206,11 @@
         // ============================================================
         // SUPABASE CLOUD SYNC + AUTH SETUP
         // ============================================================
-        // This V2 build uses Supabase instead of Supabase.
+        // This V2 build uses Supabase for authentication, cloud sync, and realtime updates.
         // 1) Create a free Supabase project.
         // 2) Create the tables/policies using the SQL provided with this build.
-        // 3) Paste your Project URL and anon/public key below.
-        // 4) Enable Email provider in Supabase Authentication.
+        // 3) Run the included SUPABASE_SETUP.sql in Supabase SQL Editor.
+        // 4) Keep Email/Password enabled and turn OFF Confirm email for this mobile-as-email login scheme.
         //
         // No old accounts, passwords, payment details or sample data are
         // imported from the previous project.
@@ -1318,7 +1318,32 @@
                 const { data, error } = await supabaseClient.from('v2_gallery_photos').select('data_url').eq('id', String(id)).maybeSingle();
                 return error || !data ? null : data.data_url;
             }
-            return { init, pullAll, pushKey, pushAllLocal, listen, isConfigured, pushGalleryPhoto, deleteGalleryPhoto, pullGalleryPhoto, get enabled(){ return enabled; } };
+
+            // Fetch all missing gallery images in ONE Supabase request instead of
+            // one network request per photo. This is critical for large galleries
+            // and prevents Gallery/Event navigation from feeling blocked by
+            // sequential image requests.
+            async function pullGalleryPhotos(ids) {
+                if (!enabled || !(await hasSession()) || !Array.isArray(ids) || !ids.length) return {};
+                try {
+                    const cleanIds = ids.map(String).filter(Boolean);
+                    const { data, error } = await supabaseClient
+                        .from('v2_gallery_photos')
+                        .select('id,data_url')
+                        .in('id', cleanIds);
+                    if (error) throw error;
+                    const result = {};
+                    (data || []).forEach(row => {
+                        if (row && row.id && row.data_url) result[String(row.id)] = row.data_url;
+                    });
+                    return result;
+                } catch (err) {
+                    console.warn('Supabase batched gallery pull failed:', err);
+                    return {};
+                }
+            }
+
+            return { init, pullAll, pushKey, pushAllLocal, listen, isConfigured, pushGalleryPhoto, deleteGalleryPhoto, pullGalleryPhoto, pullGalleryPhotos, get enabled(){ return enabled; } };
         })();
 
         // Safe storage wrapper: falls back to in-memory storage if localStorage
@@ -1378,7 +1403,7 @@
         // Per-photo local cache for the gallery. Deliberately NOT routed through
         // safeStorage (which auto-pushes to cloud only for the fixed
         // CLOUD_SYNC_KEYS list) — each gallery photo is its own dynamic
-        // Firestore document instead (see cloudSync.pushGalleryPhoto/
+        // Supabase row instead (see cloudSync.pushGalleryPhoto/
         // pullGalleryPhoto/deleteGalleryPhoto above), so it gets its own
         // independent ~1MB budget rather than sharing one document with every
         // other photo in the gallery, the same problem v2_gallery used to have
@@ -1419,7 +1444,7 @@
             gallery: (function buildInitialGallery() {
                 // 'v2_gallery' now stores a small INDEX (just id + addedAt per
                 // photo, no image bytes) — the actual image data for each photo
-                // lives in its own dedicated Firestore document + local cache
+                // lives in its own dedicated Supabase row + local cache
                 // entry (see galleryPhotoCache / cloudSync.pushGalleryPhoto),
                 // so a large gallery no longer has to fit inside one shared
                 // ~1MB field the way it used to.
@@ -1430,7 +1455,7 @@
                 // Legacy format (pre-split): v2_gallery held an array of raw
                 // base64 data URLs directly, all bundled inside one shared
                 // document. Migrate each into its own locally-cached photo +
-                // index entry; the dedicated per-photo Firestore documents get
+                // index entry; the dedicated per-photo Supabase rows get
                 // created automatically the next time this device connects to
                 // the cloud (see migrateGalleryPhotosToCloud).
                 if (idx.length && typeof idx[0] === 'string') {
@@ -1457,7 +1482,7 @@
         // Logo / login background / payment QR / donation-form QR now live in
         // their OWN dedicated storage keys (v2_logo, v2_loginbg, v2_qr,
         // v2_donationqr) instead of being bundled inside v2_config. Each key
-        // becomes its own Firestore document, so each image gets its own ~1MB
+        // becomes its own Supabase row, so each image gets its own ~1MB
         // budget instead of sharing one. If a dedicated key exists, it wins;
         // otherwise we fall back to whatever was previously saved inside
         // v2_config (older data saved before this change), so nothing breaks
@@ -1877,6 +1902,11 @@
                         const {data,error}=await supabaseClient.rpc('get_my_profile_by_mobile',{p_mobile: mobile});
                         if(error) throw error;
                         return data || null;
+                    },
+                    registerProfile: async function(payload){
+                        const {data,error}=await supabaseClient.rpc('register_my_profile', payload);
+                        if(error) throw error;
+                        return data || null;
                     }
                 };
                 return {auth,db};
@@ -1903,17 +1933,27 @@
             try {
                 const authEmail=authEmailForMobile(mobile);
                 const cred=await services.auth.createUserWithEmailAndPassword(authEmail,password);
-                const uid=cred.user.id;
                 // Supabase Email/Password must have an active session for the RLS policy to allow
                 // a newly registered user to create their own pending profile.
                 const sessionCheck = await supabaseClient.auth.getSession();
                 if (!sessionCheck.data || !sessionCheck.data.session) {
                     throw new Error('Registration created the authentication account but no active session was returned. In Supabase, turn OFF Authentication → Providers → Email → Confirm email.');
                 }
-                await services.db.collection(V2_USER_COLLECTION).doc(uid).set({id:uid,uid,name,mobile,requested_role:requestedRole,role:'pending',status:'pending',approved:false,created_at:new Date().toISOString(),approved_at:null,approved_by:null});
+                // The first successfully registered account is bootstrapped as the
+                // Super Admin by the database function. Every later account remains
+                // pending until an approved Admin/Super Admin accepts it.
+                const profile = await services.auth.registerProfile({
+                    p_name: name,
+                    p_mobile: mobile,
+                    p_requested_role: requestedRole
+                });
                 await services.auth.signOut();
                 e.target.reset();closeRegistrationModal();
-                alert('Registration submitted successfully. Your account is pending approval by an Admin or Super Admin.');
+                if (profile && profile.role === 'super' && profile.status === 'approved') {
+                    alert('First account created successfully. It is the initial Super Admin. Sign in with your mobile number and password.');
+                } else {
+                    alert('Registration submitted successfully. Your account is pending approval by an Admin or Super Admin.');
+                }
             } catch(err) {
                 console.error(err);
                 const code=err&&err.code?err.code:'';
@@ -2518,7 +2558,7 @@
         // byte-budget-aware resizer as the logo/login background/QR (see
         // resizeImageDataUrl above) instead of a fixed JPEG quality — this
         // guarantees the result comfortably fits inside its own dedicated
-        // ~1MB Firestore document rather than just hoping 0.85 quality is
+        // ~1MB Supabase row rather than just hoping 0.85 quality is
         // small enough. Never rejects (matches resizeImageDataUrl's own
         // fallback-to-original behavior), so a single bad file in a batch
         // can't abort the rest of the upload.
@@ -2547,24 +2587,35 @@
         // Merges an incoming gallery INDEX with whatever this device already
         // has cached locally. Any id present in the index but not yet cached
         // locally (e.g. a photo just added on another device) is fetched from
-        // its own dedicated Firestore document. Guarded against overlapping
+        // its own dedicated Supabase row. Guarded against overlapping
         // calls (e.g. a burst of realtime updates) via a monotonically
         // increasing token, so an older, slower reconcile can't clobber a
         // newer one that finished first.
         let galleryReconcileToken = 0;
         async function reconcileGalleryFromIndex(idx) {
             const myToken = ++galleryReconcileToken;
-            const items = [];
-            for (const entry of idx) {
-                if (!entry || !entry.id) continue;
-                let url = galleryPhotoCache.get(entry.id);
-                if (!url && cloudSync.enabled) {
-                    url = await cloudSync.pullGalleryPhoto(entry.id);
-                    if (url) galleryPhotoCache.set(entry.id, url);
-                }
-                items.push({ id: entry.id, addedAt: entry.addedAt || null, url: url || '' });
+            const validEntries = (Array.isArray(idx) ? idx : []).filter(entry => entry && entry.id);
+
+            // Use the local cache first. Only IDs genuinely missing from cache
+            // are requested from Supabase, and they are requested in one batch.
+            const missingIds = [];
+            validEntries.forEach(entry => {
+                if (!galleryPhotoCache.get(entry.id)) missingIds.push(entry.id);
+            });
+
+            let remoteMap = {};
+            if (missingIds.length && cloudSync.enabled) {
+                remoteMap = await cloudSync.pullGalleryPhotos(missingIds);
+                Object.keys(remoteMap).forEach(id => galleryPhotoCache.set(id, remoteMap[id]));
             }
-            if (myToken !== galleryReconcileToken) return; // a newer reconcile has since superseded this one
+
+            const items = validEntries.map(entry => ({
+                id: entry.id,
+                addedAt: entry.addedAt || null,
+                url: galleryPhotoCache.get(entry.id) || remoteMap[entry.id] || ''
+            }));
+
+            if (myToken !== galleryReconcileToken) return;
             appState.gallery = items;
             if (typeof syncDataMatrices === 'function') syncDataMatrices();
         }
@@ -2623,7 +2674,7 @@
                 appState.gallery.push({ id: id, addedAt: new Date().toISOString(), url: dataUrl });
                 uploaded++;
 
-                // Each photo gets its own dedicated Firestore document — no
+                // Each photo gets its own dedicated Supabase row — no
                 // longer shares one shared field's ~1MB budget with every
                 // other photo in the gallery.
                 if (cloudSync.enabled) {
@@ -2633,7 +2684,7 @@
                         const approxKb = Math.round((dataUrl.length * 0.75) / 1024);
                         const code = result.err && result.err.code ? result.err.code : 'unknown';
                         const msg = result.err && result.err.message ? result.err.message : String(result.err);
-                        alert(`Warning: "${files[i].name}" (~${approxKb} KB) could not be synced to the cloud.\n\nFirestore error: [${code}] ${msg}\n\nIt is saved on this device only for now and may be overwritten by a future sync.`);
+                        alert(`Warning: "${files[i].name}" (~${approxKb} KB) could not be synced to the cloud.\n\nSupabase error: [${code}] ${msg}\n\nIt is saved on this device only for now and may be overwritten by a future sync.`);
                     }
                 }
             }
@@ -2970,7 +3021,6 @@
                         </tr>
                     `;
                 }).join('');
-            lucide.createIcons();
         }
 
         function syncExpensesTable() {
@@ -3003,7 +3053,6 @@
                     op += `</div>`;
                     return `<tr><td class="p-3 font-semibold text-slate-700 dark:text-slate-300">${e.description}</td><td class="p-3 font-bold text-rose-500">₹${e.amount.toLocaleString('en-IN')}</td><td class="p-3 text-slate-400">${e.date || '—'}</td><td class="p-3 text-slate-400">${e.recordedBy || 'Unknown'}</td><td class="p-3">${op}</td></tr>`;
                 }).join('');
-            lucide.createIcons();
         }
 
         function printExpenseList() {
@@ -3277,7 +3326,6 @@
                         </tr>
                     `;
                 }).join('');
-            lucide.createIcons();
         }
 
         function saveProcessionState() {
@@ -3809,7 +3857,7 @@
                             const approxKb = Math.round(resizedDataUrl.length / 1024);
                             status.innerText = `✓ Loaded "${file.name}" (~${approxKb} KB after resizing) — not saved yet, click Update Parameters below.`;
                             status.classList.remove('hidden');
-                        }, 900 * 1024); // login background now has its own Firestore document (v2_loginbg) — no longer shares a budget with the other images
+                        }, 900 * 1024); // login background now has its own Supabase row (v2_loginbg) — no longer shares a budget with the other images
                     };
                     reader.onerror = function() {
                         alert("Could not read the selected image file. Please try a different image.");
@@ -3828,7 +3876,7 @@
                             const preview = document.getElementById('cfgLogoPreview');
                             preview.src = resizedDataUrl;
                             preview.classList.remove('hidden');
-                        }, 900 * 1024); // logo now has its own Firestore document (v2_logo) — no longer shares a budget with the other images
+                        }, 900 * 1024); // logo now has its own Supabase row (v2_logo) — no longer shares a budget with the other images
                     };
                     reader.onerror = function() {
                         alert("Could not read the selected image file. Please try a different image.");
@@ -3845,7 +3893,7 @@
                         // maxDim raised to 2000 and sharp-edge mode enabled: QR codes
                         // are flat black/white, so they stay well under the byte
                         // budget as lossless PNG even at this resolution. The QR now
-                        // also has its own Firestore document (v2_qr), so it no
+                        // also has its own Supabase row (v2_qr), so it no
                         // longer shares a byte budget with the logo/background.
                         resizeImageDataUrl(reader.result, 2000, function(resizedDataUrl) {
                             document.getElementById('cfgQrUrl').value = resizedDataUrl;
@@ -4091,7 +4139,7 @@
                     appState.config.permissionPdfEnabledForAdmin = document.getElementById('cfgPermissionPdfEnabledForAdmin').checked;
         
                     // Logo, login background, dashboard-header QR, and donation-form QR
-                    // each sync as their OWN Firestore document (v2_logo / v2_loginbg /
+                    // each sync as their OWN Supabase row (v2_logo / v2_loginbg /
                     // v2_qr / v2_donationqr) now, instead of being bundled together
                     // inside v2_config. That means each image gets its own ~1MB
                     // Firestore field budget rather than sharing one — so check each
@@ -4222,7 +4270,14 @@
                         document.getElementById('notesTextarea').value = appState.notes || '';
                         renderPermissionPdfUI();
                     }
-                    if (targetId === 'procession') {
+                    if (targetId === 'gallery') {
+                        // Gallery index/images are already synchronized by the
+                        // cloud layer. Re-render only this pane when opened.
+                        renderGalleryPane();
+                    } else if (targetId === 'events') {
+                        syncEventsTable();
+                        lucide.createIcons();
+                    } else if (targetId === 'procession') {
                         applyProcessionRoleUI();
                         initProcessionMap();
                         setTimeout(() => { if (processionMapInstance) processionMapInstance.invalidateSize(); }, 50);
@@ -4271,8 +4326,36 @@
                     event.target.value = '';
                 }
 
+        function renderGalleryPane() {
+            const box = document.getElementById('galleryContainerLayout');
+            if (!box) return;
+            const photos = appState.gallery || [];
+            box.innerHTML = photos.length === 0
+                ? `<div class="col-span-4 text-center text-xs text-slate-500 italic py-4">Gallery layout structure completely empty.</div>`
+                : photos.map((img, idx) => `
+                    <div class="relative group bg-slate-950 rounded-xl overflow-hidden border border-slate-800 h-32 cursor-pointer" onclick="openPhotoViewer('${img.url || ''}')">
+                        ${img.url
+                            ? `<img src="${img.url}" loading="lazy" decoding="async" class="w-full h-full object-cover group-hover:opacity-80 transition-opacity">`
+                            : `<div class="w-full h-full flex items-center justify-center text-[10px] text-slate-500">Image unavailable</div>`}
+                        <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                            <i data-lucide="expand" class="w-5 h-5 text-white drop-shadow"></i>
+                        </div>
+                        ${(appState.isSuperUser || appState.config.downloadEnabledForAdmin !== false) ? `
+                            <button onclick="event.stopPropagation(); downloadGalleryImage('${img.url || ''}', ${idx})" class="absolute top-2 left-2 bg-sky-600 text-white p-1 rounded-lg opacity-90 hover:opacity-100 transition-all shadow" title="Download photo">
+                                <i data-lucide="download" class="w-3 h-3"></i>
+                            </button>` : ''}
+                        ${appState.isSuperUser ? `
+                            <button onclick="event.stopPropagation(); purgeGalleryImage(${idx})" class="absolute top-2 right-2 bg-rose-600 text-white p-1 rounded-lg opacity-90 hover:opacity-100 transition-all shadow">
+                                <i data-lucide="trash-2" class="w-3 h-3"></i>
+                            </button>` : ''}
+                    </div>`).join('');
+        }
+
         function syncDataMatrices() {
-            renderProcessionUI();
+            // Keep global data refreshes lightweight. The procession map is a
+            // heavy UI component and must NOT be rebuilt on every donation,
+            // gallery, event, or realtime update. It is rendered only when the
+            // Procession pane is opened or its route state actually changes.
             let collectionSum = 0; let pendingSum = 0; let todaySum = 0; let adminBreakdown = {};
             const todayStr = localDateStr();
 
@@ -4370,26 +4453,7 @@
                     </tr>
                 `).join('');
 
-            document.getElementById('galleryContainerLayout').innerHTML = appState.gallery.length === 0 ?
-                `<div class="col-span-4 text-center text-xs text-slate-500 italic py-4">Gallery layout structure completely empty.</div>` :
-                appState.gallery.map((img, idx) => `
-                    <div class="relative group bg-slate-950 rounded-xl overflow-hidden border border-slate-800 h-32 cursor-pointer" onclick="openPhotoViewer('${img.url}')">
-                        <img src="${img.url}" class="w-full h-full object-cover group-hover:opacity-80 transition-opacity">
-                        <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                            <i data-lucide="expand" class="w-5 h-5 text-white drop-shadow"></i>
-                        </div>
-                        ${(appState.isSuperUser || appState.config.downloadEnabledForAdmin !== false) ? `
-                            <button onclick="event.stopPropagation(); downloadGalleryImage('${img.url}', ${idx})" class="absolute top-2 left-2 bg-sky-600 text-white p-1 rounded-lg opacity-90 hover:opacity-100 transition-all shadow" title="Download photo">
-                                <i data-lucide="download" class="w-3 h-3"></i>
-                            </button>
-                        ` : ''}
-                        ${appState.isSuperUser ? `
-                            <button onclick="event.stopPropagation(); purgeGalleryImage(${idx})" class="absolute top-2 right-2 bg-rose-600 text-white p-1 rounded-lg opacity-90 hover:opacity-100 transition-all shadow">
-                                <i data-lucide="trash-2" class="w-3 h-3"></i>
-                            </button>
-                        ` : ''}
-                    </div>
-                `).join('');
+            renderGalleryPane();
 
             syncDonationsTable();
             syncPrasadamTable();
@@ -4443,7 +4507,7 @@
                         // Same reasoning as the config/logo split below: a
                         // restored gallery must not go back to being one giant
                         // bundled field. Each photo is re-cached locally and
-                        // re-pushed to its own dedicated Firestore document;
+                        // re-pushed to its own dedicated Supabase row;
                         // 'v2_gallery' only ever stores the small index.
                         let restoredGallery = Array.isArray(parsed.gallery) ? parsed.gallery : [];
                         // Guard against restoring an even-older backup that used
@@ -4769,7 +4833,7 @@
                         // 'raw' here is just the small index (ids + addedAt), not
                         // image data — merge it with whatever this device already
                         // has cached locally, fetching any missing photos from
-                        // their own dedicated Firestore documents.
+                        // their own dedicated Supabase rows.
                         let idx;
                         try { idx = JSON.parse(raw) || []; } catch (e) { idx = []; }
                         if (!Array.isArray(idx)) idx = [];
@@ -4862,7 +4926,7 @@
             } else if (state === 'error') {
                 // Show the raw error on-screen (no dev tools needed) so this
                 // can be diagnosed from a phone. detail is whatever the
-                // Firestore/JS error gave us: a code like 'permission-denied'
+                // Supabase/JS error gave us: a code like 'permission-denied'
                 // or 'unavailable', plus its message where available.
                 const suffix = detail ? ` (${detail})` : '';
                 textEl.textContent = `Cloud sync failed to connect — using local storage only${suffix}`;
@@ -4943,10 +5007,10 @@
                     cloudSync.pushAllLocal(seed);
                     confirmSplashLogoAndRender();
                 }
-                // Push up any gallery photos this device has locally that the
-                // cloud doesn't have yet — covers legacy-format migration and a
-                // freshly-seeded project alike. Safe/idempotent to run every time.
-                migrateGalleryPhotosToCloud();
+                // Do not scan every gallery photo against Supabase during every
+                // startup. New uploads are pushed immediately; legacy cached photos
+                // are reconciled when their index is loaded. This keeps login and tab
+                // navigation responsive even with many gallery images.
                 updateCloudSyncStatusUI('connected');
                 cloudSync.listen(applyCloudData);
                 cloudNotificationsArmed = true;
@@ -5015,7 +5079,21 @@
                 try { if (window.lucide) lucide.createIcons(); } catch (e) {}
             };
         }
-        window.onload = function() {
+        // Last-resort runtime guard: keep one broken optional CDN/widget from
+        // leaving a blank page. Errors are surfaced in the existing notification area.
+        window.addEventListener('error', function(event) {
+            console.error('Application error:', event.error || event.message);
+            const box = document.getElementById('dataNotifyContainer');
+            if (box && event && event.message && !String(event.message).includes('Script error')) {
+                const el = document.createElement('div');
+                el.className = 'pointer-events-auto bg-rose-700 text-white px-4 py-3 rounded-lg shadow-2xl text-xs w-80';
+                el.textContent = 'Application error: ' + event.message;
+                box.appendChild(el);
+                setTimeout(function(){ if(el.parentNode) el.remove(); }, 7000);
+            }
+        });
+
+                window.onload = function() {
             applyInitialThemeConfig();
             lucide.createIcons();
             initCloudSync();
