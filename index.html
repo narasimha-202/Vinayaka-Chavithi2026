@@ -1225,7 +1225,7 @@
         })();
 
         const V2_CLOUD_COLLECTION = 'v2_data';
-        const V2_USER_COLLECTION = 'v2_users';
+        const V2_USER_COLLECTION = 'user_profiles';
         const SUPABASE_URL = 'https://kgqldnwjallmqpulsjjh.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_Z6t5FWE34BzCnoK9fVE8_A_vhY0AqRK';
         let supabaseClient = null;
@@ -1899,7 +1899,7 @@
                 const authEmail=authEmailForMobile(mobile);
                 const cred=await services.auth.createUserWithEmailAndPassword(authEmail,password);
                 const uid=cred.user.id;
-                await services.db.collection(V2_USER_COLLECTION).doc(uid).set({id:uid,uid,name,username:mobile,usernameLower:mobile,mobile,authEmail,requestedRole,role:'pending',status:'pending',approved:false,createdAt:new Date().toISOString(),approvedAt:null,approvedBy:null});
+                await services.db.collection(V2_USER_COLLECTION).doc(uid).set({id:uid,uid,name,mobile,requested_role:requestedRole,role:'pending',status:'pending',approved:false,created_at:new Date().toISOString(),approved_at:null,approved_by:null});
                 await services.auth.signOut();
                 e.target.reset();closeRegistrationModal();
                 alert('Registration submitted successfully. Your account is pending approval by an Admin or Super Admin.');
@@ -1919,7 +1919,7 @@
             try {
                 const snap=await services.db.collection(V2_USER_COLLECTION).where('status','==','approved').get();
                 const accounts=[];
-                snap.docs.forEach(d=>{const x=d.data()||{};accounts.push({username:x.username||x.mobile,mobile:x.mobile,authEmail:x.authEmail,name:x.name,isSuper:x.role==='super',isPeople:x.role==='people',uid:x.uid||d.id});});
+                snap.docs.forEach(d=>{const x=d.data()||{};accounts.push({username:x.mobile,mobile:x.mobile,authEmail:x.authEmail,name:x.name,isSuper:x.role==='super',isPeople:x.role==='people',uid:x.uid||d.id});});
                 appState.admins=accounts;safeStorage.setItem('v2_admins',JSON.stringify(accounts));return accounts;
             } catch(err){console.warn('Could not load approved accounts',err);return appState.admins||[];}
         }
@@ -1936,7 +1936,7 @@
                 if(!snap.exists){await services.auth.signOut();alert('Your account profile was not found. Please register again or contact the Super Admin.');return;}
                 const profile=snap.data()||{};
                 if(profile.status!=='approved'||profile.approved!==true){await services.auth.signOut();if(profile.status==='rejected')alert('Your registration was rejected. Please contact an Admin or Super Admin.');else if(profile.status==='revoked')alert('Your access has been revoked. Please contact the Super Admin.');else alert('Your registration is still pending approval by an Admin or Super Admin.');return;}
-                accountMatch={username:profile.username||profile.mobile,mobile:profile.mobile,authEmail:profile.authEmail,name:profile.name,isSuper:profile.role==='super',isPeople:profile.role==='people',uid:profile.uid||cred.user.id};
+                accountMatch={username:profile.mobile,mobile:profile.mobile,authEmail:profile.authEmail,name:profile.name,isSuper:profile.role==='super',isPeople:profile.role==='people',uid:profile.uid||cred.user.id};
                 appState.admins=await loadApprovedAccountsFromCloud();
                 // First authenticated cloud pull; this prevents the secure RLS policies
                 // from exposing management data before a user is approved and logged in.
@@ -1977,9 +1977,9 @@
                 if (snap.empty) { box.innerHTML = '<div class="text-xs text-slate-500 italic py-2">No pending registrations.</div>'; return; }
                 box.innerHTML = snap.docs.map(d => {
                     const x = d.data() || {};
-                    const role = x.requestedRole === 'admin' ? 'Admin' : 'People';
-                    const safe = JSON.stringify({uid:d.id, name:x.name||'', username:x.username||'', role:x.requestedRole||'people'}).replace(/'/g,'&#39;');
-                    return `<div class="border border-slate-200 dark:border-slate-700 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><div class="font-bold text-sm">${x.name || x.username}</div><div class="text-[10px] text-slate-500">@${x.username || ''} · ${x.email || ''} · ${x.mobile || ''}</div><span class="inline-block mt-1 text-[9px] uppercase font-bold px-2 py-1 rounded bg-amber-500/10 text-amber-500">Requested: ${role}</span></div><div class="flex gap-2"><button onclick='approveRegistration(${safe})' class="bg-emerald-600 text-white text-[10px] font-bold px-3 py-2 rounded-lg">Approve</button><button onclick='rejectRegistration(${safe})' class="bg-rose-600 text-white text-[10px] font-bold px-3 py-2 rounded-lg">Reject</button></div></div>`;
+                    const role = x.requested_role === 'admin' ? 'Admin' : 'People';
+                    const safe = JSON.stringify({uid:d.id, name:x.name||'', username:x.mobile||'', role:x.requested_role||'people'}).replace(/'/g,'&#39;');
+                    return `<div class="border border-slate-200 dark:border-slate-700 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><div class="font-bold text-sm">${x.name || x.mobile}</div><div class="text-[10px] text-slate-500">@${x.mobile || ''} · ${x.email || ''} · ${x.mobile || ''}</div><span class="inline-block mt-1 text-[9px] uppercase font-bold px-2 py-1 rounded bg-amber-500/10 text-amber-500">Requested: ${role}</span></div><div class="flex gap-2"><button onclick='approveRegistration(${safe})' class="bg-emerald-600 text-white text-[10px] font-bold px-3 py-2 rounded-lg">Approve</button><button onclick='rejectRegistration(${safe})' class="bg-rose-600 text-white text-[10px] font-bold px-3 py-2 rounded-lg">Reject</button></div></div>`;
                 }).join('');
             } catch (err) { box.innerHTML = `<div class="text-xs text-rose-500">Unable to load pending registrations: ${err.message || err}</div>`; }
         }
@@ -1988,7 +1988,7 @@
             const services = getAuthServices(); if (!services) return;
             try {
                 const role = data.role === 'admin' ? 'admin' : 'people';
-                await services.db.collection(V2_USER_COLLECTION).doc(data.uid).set({ status:'approved', approved:true, role, approvedAt:new Date().toISOString(), approvedBy:appState.authenticatedUser }, {merge:true});
+                await services.db.collection(V2_USER_COLLECTION).doc(data.uid).set({ status:'approved', approved:true, role, approved_at:new Date().toISOString(), approved_by:appState.authenticatedUser }, {merge:true});
                 appendPipelineLog(`Approved registration: ${data.username} as ${role}`);
                 await loadApprovedAccountsFromCloud();
                 await loadPendingRegistrations();
@@ -2001,7 +2001,7 @@
             const services = getAuthServices(); if (!services) return;
             if (!confirm(`Reject registration for ${data.username}?`)) return;
             try {
-                await services.db.collection(V2_USER_COLLECTION).doc(data.uid).set({ status:'rejected', approved:false, rejectedAt:new Date().toISOString(), rejectedBy:appState.authenticatedUser }, {merge:true});
+                await services.db.collection(V2_USER_COLLECTION).doc(data.uid).set({ status:'rejected', approved:false }, {merge:true});
                 appendPipelineLog(`Rejected registration: ${data.username}`);
                 await loadPendingRegistrations();
             } catch(err) { alert('Rejection failed: ' + (err.message || err)); }
@@ -2018,7 +2018,7 @@
             if (!found || !found.uid) { alert('Account record not found.'); return; }
             if (!confirm(`Remove approved access for ${username}?`)) return;
             try {
-                await services.db.collection(V2_USER_COLLECTION).doc(found.uid).set({ status:'revoked', approved:false, revokedAt:new Date().toISOString(), revokedBy:appState.authenticatedUser }, {merge:true});
+                await services.db.collection(V2_USER_COLLECTION).doc(found.uid).set({ status:'revoked', approved:false }, {merge:true});
                 await loadApprovedAccountsFromCloud();
                 syncDataMatrices();
                 alert(`Access revoked for ${username}.`);
