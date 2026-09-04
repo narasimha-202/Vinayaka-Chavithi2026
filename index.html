@@ -157,7 +157,10 @@
         .toast-animate { animation: toast-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     </style>
 </head>
-<body class="bg-[#090d16] text-slate-100 dark:bg-[#090d16] dark:text-slate-100 light:bg-slate-100 light:text-slate-900 min-h-screen selection:bg-amber-500 selection:text-slate-950">
+<body class="bg-[#090d16] text-slate-100 min-h-screen selection:bg-amber-500 selection:text-slate-950 bg-cover bg-center bg-fixed relative" style="background-image: url('ganesha_profile.jpg'); background-attachment: fixed; background-size: cover; background-position: center 10%; image-rendering: -webkit-optimize-contrast;">
+
+    <!-- GLOBAL TINT OVERLAY FOR FULL SCREEN WALLPAPER VISIBILITY & HIGH READABILITY -->
+    <div class="fixed inset-0 bg-black/35 pointer-events-none z-0"></div>
 
     <!-- REALTIME SYNC BADGE & NOTIFICATION CONTAINER -->
     <div id="dataNotifyContainer" class="fixed top-5 right-5 z-[100] flex flex-col gap-2.5 items-end pointer-events-none"></div>
@@ -171,7 +174,7 @@
     </div>
 
     <!-- WELCOME SPLASH OVERLAY -->
-    <div id="welcomeSplash" class="fixed inset-0 bg-[#090d16] z-[110] flex flex-col items-center justify-center gap-5 transition-opacity duration-500">
+    <div id="welcomeSplash" class="fixed inset-0 bg-[#090d16]/95 backdrop-blur-md z-[110] flex flex-col items-center justify-center gap-5 transition-opacity duration-500">
         <div class="relative w-28 h-28 flex items-center justify-center">
             <div class="absolute inset-0 bg-amber-500/20 rounded-full blur-xl animate-pulse"></div>
             <img id="welcomeSplashLogoImg" src="" class="w-full h-full object-contain relative z-10 hidden">
@@ -186,14 +189,11 @@
         </div>
     </div>
 
-    <!-- LOGIN & AUTH PORTAL -->
-    <div id="authPortal" class="fixed inset-0 bg-[#090d16] z-50 flex items-center justify-center p-4">
-        <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
-        <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-        <div class="w-full max-w-md space-y-6 relative z-10">
+    <!-- LOGIN & AUTH PORTAL (Adjusted Downwards to Keep Ganesha Face Unobstructed) -->
+    <div id="authPortal" class="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center items-center p-4 sm:p-6 pb-6 sm:pb-10 bg-transparent relative overflow-y-auto">
+        <div class="w-full max-w-md space-y-6 relative z-10 mt-auto sm:mt-24 md:mt-32">
             <!-- LOGIN CARD -->
-            <div class="glass-panel p-8 rounded-3xl shadow-2xl border border-slate-800 text-center space-y-6">
+            <div class="glass-panel p-8 rounded-3xl shadow-2xl border border-slate-700/60 text-center space-y-6 bg-slate-950/85 backdrop-blur-xl">
                 <div class="mx-auto w-20 h-20 bg-amber-500/10 rounded-2xl flex items-center justify-center border border-amber-500/30 overflow-hidden shadow-lg shadow-amber-500/10">
                     <img id="portalLogoImg" src="" class="hidden w-full h-full object-cover">
                     <i id="portalLogoDefaultDot" data-lucide="sparkles" class="w-10 h-10 text-amber-400"></i>
@@ -276,13 +276,13 @@
     </div>
 
     <!-- MAIN APP WRAPPER -->
-    <div id="appContainer" class="hidden h-screen overflow-hidden flex flex-col md:flex-row bg-[#090d16] text-slate-100">
+    <div id="appContainer" class="hidden h-screen overflow-hidden flex flex-col md:flex-row bg-transparent text-slate-100 relative z-10">
 
         <!-- Mobile Sidebar Backdrop -->
         <div id="sidebarBackdrop" onclick="toggleMobileSidebar(false)" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 hidden md:hidden"></div>
 
         <!-- SIDEBAR NAVIGATION -->
-        <aside id="sidebarNav" class="fixed inset-y-0 left-0 z-40 w-72 bg-[#0d1322] border-r border-slate-800/80 flex flex-col shrink-0 transform -translate-x-full transition-transform duration-250 ease-out md:static md:translate-x-0 md:w-64 md:h-screen">
+        <aside id="sidebarNav" class="fixed inset-y-0 left-0 z-40 w-72 bg-[#0d1322]/85 backdrop-blur-xl border-r border-slate-800/80 flex flex-col shrink-0 transform -translate-x-full transition-transform duration-250 ease-out md:static md:translate-x-0 md:w-64 md:h-screen">
             <div class="p-6 border-b border-slate-800/80 flex items-center gap-3">
                 <div id="sidebarLogoBox" class="w-10 h-10 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-400 border border-amber-500/20 shrink-0 overflow-hidden">
                     <img id="sidebarLogoImg" src="" class="hidden w-full h-full object-cover">
@@ -1228,6 +1228,10 @@
                         </select>
                     </div>
                 </div>
+                <label class="flex items-center gap-2 bg-[#0b0f19] border border-slate-800 rounded-xl p-3 cursor-pointer">
+                    <input type="checkbox" id="addEventNotifyCommittee" checked class="w-4 h-4 accent-amber-500 rounded">
+                    <span class="text-xs text-slate-300 font-bold">Broadcast WhatsApp Notification to Committee</span>
+                </label>
                 <button type="submit" id="eventSubmitBtn" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold py-3 rounded-xl uppercase tracking-wider gold-btn-glow">Save Event Record</button>
             </form>
         </div>
@@ -1649,6 +1653,7 @@
             document.getElementById('sidebarUserName').innerText = appState.authenticatedDisplayName;
             document.getElementById('sidebarUserRoleBadge').innerText = appState.isSuperUser ? 'Super Admin' : (appState.isPeopleUser ? 'Devotee' : 'Admin');
             
+            applyAppProfileAndLogo();
             applyAdminAccessControls();
             switchWorkspaceView('dashboard');
             syncDataMatrices();
@@ -1705,8 +1710,8 @@
             document.getElementById('registrationModal').classList.remove('flex');
         }
 
-        async function confirmLogout() {
-            if (!confirm('Are you sure you want to sign out?')) return;
+        async function confirmLogout(skipConfirm = false) {
+            if (!skipConfirm && !confirm('Are you sure you want to sign out?')) return;
             if (supabaseClient) {
                 try { await supabaseClient.auth.signOut(); } catch (e) {}
             }
@@ -1870,23 +1875,41 @@
                         <td class="p-3.5 font-mono text-slate-400 text-[11px]">${escapeHTML(d.date)}</td>
                         <td class="p-3.5 text-slate-400">${escapeHTML(d.collector || 'Admin')}</td>
                         <td class="p-3.5 text-right">
-                            <div class="flex gap-2 justify-end">
-                                ${d.status === 'Pending' ? `<button onclick="settlePledge('${escapeHTML(d.id)}')" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold px-2.5 py-1 rounded-lg text-[10px] uppercase">Settle Pay</button>` : ''}
-                                <button onclick="openReceiptModal('${escapeHTML(d.id)}')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1 rounded-lg text-[10px] font-bold">Print/Share</button>
+                            <div class="flex gap-1.5 justify-end">
+                                ${d.status === 'Pending' ? `<button onclick="settlePledge('${escapeHTML(d.id)}')" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold px-2 py-1 rounded-lg text-[10px] uppercase">Settle</button>` : ''}
+                                <button onclick="openReceiptModal('${escapeHTML(d.id)}')" title="Print or Share Receipt" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2 py-1 rounded-lg text-[10px] font-bold">Print/Share</button>
+                                <button onclick="openEditDonationModal('${escapeHTML(d.id)}')" title="Edit Record" class="bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1"><i data-lucide="edit-3" class="w-3 h-3"></i> Edit</button>
+                                <button onclick="deleteDonationRecord('${escapeHTML(d.id)}')" title="Delete Record" class="bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 border border-rose-500/30 px-2 py-1 rounded-lg text-[10px] font-bold p-1"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
                             </div>
                         </td>
                     </tr>
                 `).join('');
+            lucide.createIcons();
         }
 
         function openAddDonationModal() {
             document.getElementById('donationForm').reset();
             document.getElementById('editDonationId').value = '';
+            document.getElementById('donationModalTitle').innerText = 'Register Devotee Donation';
+            toggleModalVisibility('donationModal', true);
+        }
+
+        function openEditDonationModal(id) {
+            const item = appState.donations.find(d => d.id === id);
+            if (!item) return;
+
+            document.getElementById('editDonationId').value = item.id;
+            document.getElementById('addDonName').value = item.donor || '';
+            document.getElementById('addDonAmount').value = item.amount || '';
+            document.getElementById('addDonMode').value = item.mode || 'Cash';
+            document.getElementById('addDonStatus').value = item.status || 'Complete';
+            document.getElementById('donationModalTitle').innerText = `Edit Donation (${item.id})`;
             toggleModalVisibility('donationModal', true);
         }
 
         function submitDonationRecord(e) {
             e.preventDefault();
+            const editId = document.getElementById('editDonationId').value;
             const donor = document.getElementById('addDonName').value.trim();
             const amount = parseFloat(document.getElementById('addDonAmount').value);
             const mode = document.getElementById('addDonMode').value;
@@ -1898,29 +1921,52 @@
             if (btn) btn.disabled = true;
 
             try {
-                const prefix = appState.config.receiptPrefix || 'SGPY2026-';
-                const uniqueSalt = Date.now().toString().slice(-4) + Math.floor(100 + Math.random() * 900);
-                const receiptId = `${prefix}${uniqueSalt}`;
+                if (editId) {
+                    appState.donations = appState.donations.map(d => {
+                        if (d.id === editId) {
+                            return { ...d, donor, amount, mode, status };
+                        }
+                        return d;
+                    });
+                    safeStorage.setItem('v2_donations', JSON.stringify(appState.donations));
+                    appendAuditLog(`Updated donation record ${editId} (₹${amount} - ${donor})`);
+                    showDataNotification('edit-3', 'Donation Updated', `Receipt ${editId} updated successfully.`, 'border-indigo-400');
+                } else {
+                    const prefix = appState.config.receiptPrefix || 'SGPY2026-';
+                    const uniqueSalt = Date.now().toString().slice(-4) + Math.floor(100 + Math.random() * 900);
+                    const receiptId = `${prefix}${uniqueSalt}`;
 
-                appState.donations.unshift({
-                    id: receiptId,
-                    donor: donor,
-                    amount: amount,
-                    mode: mode,
-                    status: status,
-                    date: todayStr,
-                    collector: appState.authenticatedUser || 'Admin'
-                });
+                    appState.donations.unshift({
+                        id: receiptId,
+                        donor: donor,
+                        amount: amount,
+                        mode: mode,
+                        status: status,
+                        date: todayStr,
+                        collector: appState.authenticatedUser || 'Admin'
+                    });
 
-                safeStorage.setItem('v2_donations', JSON.stringify(appState.donations));
-                appendAuditLog(`Issued donation receipt ${receiptId} for ₹${amount} (${donor})`);
+                    safeStorage.setItem('v2_donations', JSON.stringify(appState.donations));
+                    appendAuditLog(`Issued donation receipt ${receiptId} for ₹${amount} (${donor})`);
+                    showDataNotification('hand-coins', 'Donation Saved', `Receipt ${receiptId} issued for ₹${amount}`, 'border-emerald-400');
+                }
+
                 toggleModalVisibility('donationModal', false);
                 syncDataMatrices();
-                showDataNotification('hand-coins', 'Donation Saved', `Receipt ${receiptId} issued for ₹${amount}`, 'border-emerald-400');
             } finally {
                 if (btn) btn.disabled = false;
             }
         }
+
+        function deleteDonationRecord(id) {
+            if (!confirm(`Are you sure you want to delete donation receipt ${id}?`)) return;
+            appState.donations = appState.donations.filter(d => d.id !== id);
+            safeStorage.setItem('v2_donations', JSON.stringify(appState.donations));
+            appendAuditLog(`Deleted donation record (${id})`);
+            syncDataMatrices();
+            showDataNotification('trash-2', 'Donation Deleted', `Deleted record ${id}`, 'border-rose-400');
+        }
+
 
         function settlePledge(id) {
             appState.donations = appState.donations.map(d => {
@@ -2284,10 +2330,29 @@
                     <td class="p-3.5 font-mono text-slate-400 text-[11px]">${escapeHTML(ev.date)}</td>
                     <td class="p-3.5 font-bold text-white">${escapeHTML(ev.name)}</td>
                     <td class="p-3.5"><span class="px-2 py-0.5 rounded-lg text-[10px] font-bold ${ev.session === 'Morning' ? 'bg-amber-500/20 text-amber-300' : 'bg-indigo-500/20 text-indigo-300'}">${escapeHTML(ev.session)}</span></td>
-                    <td class="p-3.5 text-right"><button onclick="deleteEvent('${escapeHTML(ev.id)}')" class="text-rose-400 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td>
+                    <td class="p-3.5 text-right">
+                        <div class="flex gap-2 justify-end">
+                            <button onclick="notifyEventToCommittee('${escapeHTML(ev.id)}')" title="Broadcast Notification to Committee Members" class="bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-lg text-[10px] font-bold inline-flex items-center gap-1"><i data-lucide="bell" class="w-3 h-3"></i> Notify Committee</button>
+                            <button onclick="deleteEvent('${escapeHTML(ev.id)}')" title="Delete Event" class="text-rose-400 hover:text-rose-300 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </div>
+                    </td>
                 </tr>
             `).join('');
             lucide.createIcons();
+        }
+
+        function notifyEventToCommittee(id) {
+            const ev = appState.events.find(e => e.id === id);
+            if (!ev) return;
+
+            const festivalName = appState.config.festivalName || 'Sri Gowri Putra Youth';
+            const year = appState.config.year || '2026';
+            const msg = `*🚩 ${festivalName} (${year})*\n*OFFICIAL EVENT ANNOUNCEMENT*\n\n📅 *Event*: ${ev.name}\n📆 *Date*: ${ev.date}\n🌅 *Session*: ${ev.session}\n\nDear Committee Members & Devotees,\nYou are cordially invited to attend and coordinate the upcoming festival event. Please join us on time!\n\n— *${festivalName} Management Team*`;
+
+            window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+
+            appendAuditLog(`Broadcasted event notification to Committee Members (${ev.name})`);
+            showDataNotification('bell', 'Committee Notified', `Broadcasted notification for ${escapeHTML(ev.name)}`, 'border-emerald-400');
         }
 
         function openEventAddModal() {
@@ -2301,17 +2366,25 @@
             const name = document.getElementById('addEventName').value.trim();
             const date = document.getElementById('addEventDate').value;
             const session = document.getElementById('addEventSession').value;
+            const notifyChecked = document.getElementById('addEventNotifyCommittee')?.checked;
             const btn = document.getElementById('eventSubmitBtn');
 
             if (!name) { alert('Please enter event name.'); return; }
             if (btn) btn.disabled = true;
 
             try {
-                appState.events.push({ id: 'EV-' + Date.now().toString().slice(-4), name, date, session, recordedBy: appState.authenticatedUser });
+                const eventId = 'EV-' + Date.now().toString().slice(-4);
+                appState.events.push({ id: eventId, name, date, session, recordedBy: appState.authenticatedUser });
                 safeStorage.setItem('v2_events', JSON.stringify(appState.events));
                 appendAuditLog(`Added event (${name} on ${date})`);
                 toggleModalVisibility('eventsModal', false);
                 syncDataMatrices();
+
+                if (notifyChecked) {
+                    notifyEventToCommittee(eventId);
+                } else {
+                    showDataNotification('calendar-days', 'Event Scheduled', `Added ${escapeHTML(name)}`, 'border-amber-400');
+                }
             } finally {
                 if (btn) btn.disabled = false;
             }
@@ -2786,13 +2859,111 @@
         }
 
         // ============================================================
+        // APP PROFILE & LIVE FESTIVAL COUNTDOWN ENGINE (14 SEPT 2026)
+        // ============================================================
+        function applyAppProfileAndLogo() {
+            const logoPath = appState.config.logoUrl || 'ganesha_profile.jpg';
+            
+            document.body.style.backgroundImage = `url('${logoPath}')`;
+            document.body.style.backgroundAttachment = 'fixed';
+            document.body.style.backgroundSize = 'cover';
+            document.body.style.backgroundPosition = 'center 10%';
+            document.body.style.imageRendering = '-webkit-optimize-contrast';
+
+            const logoImgs = [
+                { imgId: 'welcomeSplashLogoImg', iconId: 'welcomeSplashDefaultIcon' },
+                { imgId: 'portalLogoImg', iconId: 'portalLogoDefaultDot' },
+                { imgId: 'sidebarLogoImg', iconId: 'sidebarLogoDefaultIcon' }
+            ];
+
+            logoImgs.forEach(item => {
+                const img = document.getElementById(item.imgId);
+                const icon = document.getElementById(item.iconId);
+                if (img) {
+                    img.src = logoPath;
+                    img.classList.remove('hidden');
+                }
+                if (icon) {
+                    icon.classList.add('hidden');
+                }
+            });
+        }
+
+        let countdownIntervalId = null;
+        function initLiveFestivalCountdown() {
+            if (countdownIntervalId) clearInterval(countdownIntervalId);
+
+            function tick() {
+                const targetDateStr = appState.config.eventDate || '2026-09-14';
+                const targetTime = new Date(targetDateStr + 'T00:00:00+05:30').getTime();
+                const now = new Date().getTime();
+                const diff = targetTime - now;
+
+                const daysEl = document.getElementById('cdDays');
+                const hoursEl = document.getElementById('cdHours');
+                const minsEl = document.getElementById('cdMinutes');
+                const secsEl = document.getElementById('cdSeconds');
+                const labelEl = document.getElementById('dashboardCountdownLabel');
+
+                if (diff <= 0) {
+                    if (daysEl) daysEl.innerText = '0';
+                    if (hoursEl) hoursEl.innerText = '00';
+                    if (minsEl) minsEl.innerText = '00';
+                    if (secsEl) secsEl.innerText = '00';
+                    if (labelEl) labelEl.innerText = '🎉 FESTIVAL IS LIVE NOW!';
+                    return;
+                }
+
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+                if (daysEl) daysEl.innerText = days;
+                if (hoursEl) hoursEl.innerText = hours.toString().padStart(2, '0');
+                if (minsEl) minsEl.innerText = mins.toString().padStart(2, '0');
+                if (secsEl) secsEl.innerText = secs.toString().padStart(2, '0');
+            }
+
+            tick();
+            countdownIntervalId = setInterval(tick, 1000);
+        }
+
+        // ============================================================
+        // SESSION MANAGEMENT & INACTIVITY TIMEOUT ENGINE
+        // ============================================================
+        let lastUserActivityTime = Date.now();
+        const IDLE_SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 mins idle timeout
+
+        function trackUserActivity() {
+            lastUserActivityTime = Date.now();
+        }
+
+        ['mousemove', 'keydown', 'click', 'touchstart', 'scroll'].forEach(evt => {
+            window.addEventListener(evt, trackUserActivity, { passive: true });
+        });
+
+        setInterval(function() {
+            if (appState.authenticatedUser && (Date.now() - lastUserActivityTime > IDLE_SESSION_TIMEOUT_MS)) {
+                appendAuditLog('Session timed out due to 30 min idle inactivity.');
+                confirmLogout(true);
+            }
+        }, 30000);
+
+        // ============================================================
         // APPLICATION WINDOW INITIALIZATION (STALE-WHILE-REVALIDATE)
         // ============================================================
         window.onload = async function() {
             lucide.createIcons();
             
-            // Phase 1: Initialize SyncManager & restore Supabase auth session
+            // Apply Ganesha profile logo and live countdown timer
+            applyAppProfileAndLogo();
+            initLiveFestivalCountdown();
+
+            // Phase 1: Initialize SyncManager & start continuous background cloud sync immediately
             SyncManager.init();
+            SyncManager.syncAll();
+            SyncManager.subscribeRealtime();
 
             const restored = await SyncManager.restoreSession();
             
@@ -2807,11 +2978,9 @@
 
             if (restored) {
                 showAuthenticatedApp();
-                // Phase 2: Background Cloud Sync
-                SyncManager.syncAll();
-                SyncManager.subscribeRealtime();
             }
         };
     </script>
 </body>
 </html>
+
