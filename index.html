@@ -1,0 +1,3000 @@
+<!DOCTYPE html>
+<html lang="en" id="htmlTag" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="application-name" content="Sri Gowri Putra Vinayaka Chavithi Management System">
+    <meta name="description" content="Production-Grade Real-Time Festival Operations, Donations, Expenses, Committee & Procession Management System">
+    <title>Sri Gowri Putra Youth — Vinayaka Chavithi Management System 2026</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    
+    <!-- External CSS & Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        mono: ['Space Grotesk', 'monospace']
+                    },
+                    colors: {
+                        festive: {
+                            50: '#fffbe6',
+                            100: '#fff3b8',
+                            400: '#fbbf24',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                            700: '#b45309',
+                            900: '#78350f'
+                        },
+                        darkBg: '#090d16',
+                        darkCard: '#131b2e',
+                        darkPanel: '#1a243b'
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            transition: background-color 0.25s ease, color 0.25s ease;
+        }
+        
+        .glass-panel {
+            background: rgba(19, 27, 46, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .light .glass-panel {
+            background: rgba(255, 255, 255, 0.90);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+        }
+
+        .gold-gradient-text {
+            background: linear-gradient(135deg, #fef08a 0%, #f59e0b 50%, #d97706 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .gold-btn-glow {
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.35);
+            transition: all 0.2s ease;
+        }
+        .gold-btn-glow:hover {
+            box-shadow: 0 0 28px rgba(245, 158, 11, 0.55);
+            transform: translateY(-1px);
+        }
+
+        /* Thermal receipt print layout */
+        .receipt-capture-wrap {
+            font-family: 'Space Grotesk', monospace;
+            color: #000;
+            background: #ffffff;
+            width: 148mm;
+            padding: 12mm;
+            box-sizing: border-box;
+            position: relative;
+        }
+        .receipt-capture-wrap .receipt-watermark {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: contain;
+            opacity: 0.14; z-index: 0;
+            mix-blend-mode: multiply;
+            pointer-events: none;
+        }
+        .receipt-capture-wrap .receipt-body { position: relative; z-index: 1; width: 100%; }
+        .receipt-capture-wrap h4 { font-size: 22px; text-align: center; text-transform: uppercase; font-weight: 900; letter-spacing: 0.5px; margin: 0 0 5px 0; }
+        .receipt-capture-wrap .head-sub { text-align: center; font-size: 12px; color: #333; margin: 0 0 14px 0; }
+        .receipt-capture-wrap hr.dash { border: none; border-top: 2px dashed #000; margin: 12px 0; }
+        .receipt-capture-wrap .field-row { display: flex; justify-content: space-between; gap: 12px; font-size: 15px; margin-bottom: 9px; line-height: 1.4; color: #000; }
+        .receipt-capture-wrap .field-row .f-label { font-weight: 700; white-space: nowrap; }
+        .receipt-capture-wrap .field-row .f-value { text-align: right; word-break: break-word; font-weight: 700; }
+        .receipt-capture-wrap .upi-box { text-align: center; margin-top: 14px; border: 2px dashed #000; padding: 10px; }
+
+        @media print {
+            @page { size: 148mm auto; margin: 8mm; }
+            html, body { width: 100%; height: auto; margin: 0; padding: 0; background: #fff !important; color: #000 !important; }
+            body > *:not(#printReceiptModal) { display: none !important; }
+            #printReceiptModal {
+                position: static !important; width: 100%; height: auto;
+                background: white !important; margin: 0 !important; padding: 0 !important;
+                display: block !important;
+            }
+            #printReceiptModal > div {
+                width: 100% !important; max-width: 100% !important;
+                box-shadow: none !important; border: none !important;
+                margin: 0 auto !important; padding: 0 !important;
+            }
+            .no-print { display: none !important; }
+        }
+
+        #processionMap { height: 68vh; min-height: 400px; max-height: 850px; width: 100%; border-radius: 1.25rem; z-index: 0; }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Custom Map Pins */
+        .ny-map-pin { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .ny-map-pin i, .ny-map-pin span { transform: rotate(45deg); }
+        .ny-map-pin.start { background: #10b981; }
+        .ny-map-pin.end { background: #ef4444; }
+        .ny-map-pin.done { background: #059669; }
+        .ny-map-pin.current { background: #f43f5e; animation: pulse-pin 1.5s infinite; }
+        .ny-map-pin.pending { background: #64748b; }
+        
+        .ny-live-dot { width: 18px; height: 18px; background: #f43f5e; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 0 rgba(244,63,94,0.6); animation: ny-live-pulse 1.6s infinite; }
+
+        @keyframes ny-live-pulse {
+            0% { box-shadow: 0 0 0 0 rgba(244,63,94,0.7); }
+            70% { box-shadow: 0 0 0 14px rgba(244,63,94,0); }
+            100% { box-shadow: 0 0 0 0 rgba(244,63,94,0); }
+        }
+
+        @keyframes toast-slide-in {
+            from { transform: translateY(-100%) scale(0.9); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        .toast-animate { animation: toast-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    </style>
+</head>
+<body class="bg-[#090d16] text-slate-100 min-h-screen selection:bg-amber-500 selection:text-slate-950 bg-cover bg-center bg-fixed relative" style="background-image: url('ganesha_profile.jpg'); background-attachment: fixed; background-size: cover; background-position: center 10%; image-rendering: -webkit-optimize-contrast;">
+
+    <!-- GLOBAL TINT OVERLAY FOR FULL SCREEN WALLPAPER VISIBILITY & HIGH READABILITY -->
+    <div class="fixed inset-0 bg-black/35 pointer-events-none z-0"></div>
+
+    <!-- REALTIME SYNC BADGE & NOTIFICATION CONTAINER -->
+    <div id="dataNotifyContainer" class="fixed top-5 right-5 z-[100] flex flex-col gap-2.5 items-end pointer-events-none"></div>
+
+    <div id="syncStatusIndicator" class="fixed bottom-4 right-4 z-[90] pointer-events-auto">
+        <div class="glass-panel px-4 py-2 rounded-full shadow-2xl flex items-center gap-2.5 text-xs border border-emerald-500/30">
+            <span id="syncStatusDot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span id="syncStatusText" class="font-bold text-slate-200">● Live Synced</span>
+            <button onclick="SyncManager.syncAll(true)" title="Force Refresh Data" class="hover:text-amber-400 ml-1 transition-colors"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i></button>
+        </div>
+    </div>
+
+    <!-- WELCOME SPLASH OVERLAY -->
+    <div id="welcomeSplash" class="fixed inset-0 bg-[#090d16]/95 backdrop-blur-md z-[110] flex flex-col items-center justify-center gap-5 transition-opacity duration-500">
+        <div class="relative w-28 h-28 flex items-center justify-center">
+            <div class="absolute inset-0 bg-amber-500/20 rounded-full blur-xl animate-pulse"></div>
+            <img id="welcomeSplashLogoImg" src="" class="w-full h-full object-contain relative z-10 hidden">
+            <i id="welcomeSplashDefaultIcon" data-lucide="sparkles" class="w-20 h-20 text-amber-400 relative z-10 animate-bounce"></i>
+        </div>
+        <div class="text-center px-4">
+            <h1 class="text-3xl sm:text-4xl font-black tracking-wider gold-gradient-text uppercase dynamicFestivalName">Sri Gowri Putra Youth</h1>
+            <p class="text-sm text-slate-400 mt-2 font-medium">Vinayaka Chavithi Management System <span class="dynamicFestivalYear text-amber-400 font-bold">2026</span></p>
+            <div class="mt-4 flex items-center justify-center gap-2 text-xs text-amber-400/80">
+                <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span> <span id="splashStatusMsg">Restoring Session & Syncing Data...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- LOGIN & AUTH PORTAL (Adjusted Downwards to Keep Ganesha Face Unobstructed) -->
+    <div id="authPortal" class="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center items-center p-4 sm:p-6 pb-6 sm:pb-10 bg-transparent relative overflow-y-auto">
+        <div class="w-full max-w-md space-y-6 relative z-10 mt-auto sm:mt-24 md:mt-32">
+            <!-- LOGIN CARD -->
+            <div class="glass-panel p-8 rounded-3xl shadow-2xl border border-slate-700/60 text-center space-y-6 bg-slate-950/85 backdrop-blur-xl">
+                <div class="mx-auto w-20 h-20 bg-amber-500/10 rounded-2xl flex items-center justify-center border border-amber-500/30 overflow-hidden shadow-lg shadow-amber-500/10">
+                    <img id="portalLogoImg" src="" class="hidden w-full h-full object-cover">
+                    <i id="portalLogoDefaultDot" data-lucide="sparkles" class="w-10 h-10 text-amber-400"></i>
+                </div>
+
+                <div>
+                    <h2 class="text-2xl font-black text-white tracking-wide dynamicFestivalName" id="portalFestivalTitle">Sri Gowri Putra Youth</h2>
+                    <p class="text-xs text-slate-400 mt-1">Sign in with registered mobile number</p>
+                </div>
+
+                <form onsubmit="executeAuthSession(event)" class="text-left space-y-4">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Mobile Number</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-3.5 flex items-center text-slate-500"><i data-lucide="phone" class="w-4 h-4"></i></span>
+                            <input type="tel" id="loginUser" required inputmode="numeric" autocomplete="tel" maxlength="10" pattern="[0-9]{10}" class="w-full bg-[#0b0f19] border border-slate-800 text-sm rounded-xl pl-11 pr-4 py-3 text-white focus:outline-none focus:border-amber-500 transition-colors" placeholder="10-digit mobile number">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Password</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-3.5 flex items-center text-slate-500"><i data-lucide="lock" class="w-4 h-4"></i></span>
+                            <input type="password" id="loginPass" required autocomplete="current-password" class="w-full bg-[#0b0f19] border border-slate-800 text-sm rounded-xl pl-11 pr-11 py-3 text-white focus:outline-none focus:border-amber-500 transition-colors" placeholder="••••••••">
+                            <button type="button" onclick="togglePasswordVisibility('loginPass', this)" class="absolute inset-y-0 right-3.5 flex items-center text-slate-500 hover:text-amber-400"><i data-lucide="eye" class="w-4 h-4"></i></button>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="loginSubmitBtn" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold py-3 rounded-xl text-sm transition-all gold-btn-glow flex items-center justify-center gap-2">
+                        <span>Sign In to Management Desk</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </button>
+                    
+                    <button type="button" id="registerAccountBtn" onclick="openRegistrationModal()" class="w-full border border-slate-700 hover:border-amber-500/60 text-slate-300 font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2">
+                        <i data-lucide="user-plus" class="w-4 h-4"></i> Create New Account Request
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- REGISTRATION MODAL -->
+    <div id="registrationModal" class="hidden fixed inset-0 z-[80] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass-panel border border-slate-700 rounded-3xl p-6 sm:p-8 w-full max-w-md text-left shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div>
+                    <h3 class="text-lg font-bold text-white">Create Management Account</h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Submitted requests require Super Admin approval.</p>
+                </div>
+                <button type="button" onclick="closeRegistrationModal()" class="text-slate-400 hover:text-white p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+
+            <form onsubmit="registerNewAccount(event)" class="space-y-3.5 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-400 mb-1">Full Name</label>
+                    <input id="regName" required maxlength="80" placeholder="e.g. Ramesh Kumar" class="w-full bg-[#0b0f19] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-400 mb-1">10-Digit Mobile Number</label>
+                    <input id="regMobile" required maxlength="10" minlength="10" inputmode="numeric" pattern="[0-9]{10}" placeholder="9876543210" class="w-full bg-[#0b0f19] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-400 mb-1">Password</label>
+                    <input id="regPassword" required minlength="6" type="password" placeholder="Minimum 6 characters" class="w-full bg-[#0b0f19] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-400 mb-1">Requested Access Level</label>
+                    <select id="regRole" class="w-full bg-[#0b0f19] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white">
+                        <option value="people">Devotee / People (Public View)</option>
+                        <option value="admin">Operator Admin (Full Operation Access)</option>
+                    </select>
+                </div>
+                <div class="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-[11px] text-amber-200 space-y-1.5">
+                    <div class="font-bold flex items-center gap-1.5"><i data-lucide="triangle-alert" class="w-4 h-4"></i> Registration Notice</div>
+                    <p class="text-amber-100/80">Account requests remain pending until approved by an active Super Admin.</p>
+                </div>
+                <button type="submit" id="regSubmitBtn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-sm transition-all shadow-lg">Submit Registration</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP WRAPPER -->
+    <div id="appContainer" class="hidden h-screen overflow-hidden flex flex-col md:flex-row bg-transparent text-slate-100 relative z-10">
+
+        <!-- Mobile Sidebar Backdrop -->
+        <div id="sidebarBackdrop" onclick="toggleMobileSidebar(false)" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 hidden md:hidden"></div>
+
+        <!-- SIDEBAR NAVIGATION -->
+        <aside id="sidebarNav" class="fixed inset-y-0 left-0 z-40 w-72 bg-[#0d1322]/85 backdrop-blur-xl border-r border-slate-800/80 flex flex-col shrink-0 transform -translate-x-full transition-transform duration-250 ease-out md:static md:translate-x-0 md:w-64 md:h-screen">
+            <div class="p-6 border-b border-slate-800/80 flex items-center gap-3">
+                <div id="sidebarLogoBox" class="w-10 h-10 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-400 border border-amber-500/20 shrink-0 overflow-hidden">
+                    <img id="sidebarLogoImg" src="" class="hidden w-full h-full object-cover">
+                    <i id="sidebarLogoDefaultIcon" data-lucide="sparkles" class="w-5 h-5"></i>
+                </div>
+                <div class="min-w-0">
+                    <h2 class="font-bold text-sm text-white tracking-wide dynamicFestivalName truncate">Sri Gowri Putra Youth</h2>
+                    <p class="text-[10px] text-amber-400 font-extrabold tracking-widest dynamicFestivalYear">2026</p>
+                </div>
+                <button onclick="toggleMobileSidebar(false)" class="ml-auto md:hidden p-1.5 text-slate-400 hover:text-rose-400 rounded-lg"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+
+            <nav class="flex-1 p-4 space-y-1 overflow-y-auto" id="sidebarMenu">
+                <button onclick="switchWorkspaceView('dashboard')" id="menu-dashboard" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all"><i data-lucide="layout-dashboard" class="w-4 h-4"></i> Analytical Dashboard</button>
+                <button onclick="switchWorkspaceView('donations')" id="menu-donations" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800/50"><i data-lucide="indian-rupee" class="w-4 h-4"></i> Donation Registers</button>
+                <button onclick="switchWorkspaceView('expenses')" id="menu-expenses" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800/50"><i data-lucide="receipt" class="w-4 h-4"></i> Expense Tracker</button>
+                <button onclick="switchWorkspaceView('committee')" id="menu-committee" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800/50"><i data-lucide="users" class="w-4 h-4"></i> Committee Directory</button>
+                <button onclick="switchWorkspaceView('sponsors')" id="menu-sponsors" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800/50"><i data-lucide="award" class="w-4 h-4"></i> Brand Sponsors</button>
+                <button onclick="switchWorkspaceView('prasadam')" id="menu-prasadam" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800/50"><i data-lucide="utensils" class="w-4 h-4"></i> Prasadam Schedule</button>
+                <button onclick="switchWorkspaceView('gallery')" id="menu-gallery" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800/50"><i data-lucide="image" class="w-4 h-4"></i> Media Gallery</button>
+                <button onclick="switchWorkspaceView('events')" id="menu-events" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800/50"><i data-lucide="calendar-days" class="w-4 h-4"></i> Event Timetable</button>
+                <button onclick="switchWorkspaceView('procession')" id="menu-procession" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800/50"><i data-lucide="route" class="w-4 h-4"></i> Nimarjan Live Route Map</button>
+                
+                <div class="h-px bg-slate-800/80 my-3"></div>
+                
+                <div id="superAdminMenuOptions" class="space-y-1 hidden">
+                    <div class="px-4 py-1 text-[10px] font-black uppercase text-amber-500/80 tracking-wider">Super Admin Desk</div>
+                    <button onclick="switchWorkspaceView('manageAdmins')" id="menu-manageAdmins" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800/50"><i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i> Manage Accounts</button>
+                    <button onclick="switchWorkspaceView('auditLogs')" id="menu-auditLogs" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800/50"><i data-lucide="terminal" class="w-4 h-4 text-amber-400"></i> Audit Timeline</button>
+                    <button onclick="switchWorkspaceView('notes')" id="menu-notes" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800/50"><i data-lucide="notebook-pen" class="w-4 h-4 text-sky-400"></i> Notes & Documents</button>
+                    <button onclick="switchWorkspaceView('coreSettings')" id="menu-coreSettings" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800/50"><i data-lucide="settings" class="w-4 h-4 text-indigo-400"></i> System Settings</button>
+                </div>
+            </nav>
+
+            <div class="p-4 border-t border-slate-800/80 text-xs">
+                <div class="flex items-center gap-2 bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+                    <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400 font-bold shrink-0">
+                        <i data-lucide="user" class="w-4 h-4"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div id="sidebarUserRoleBadge" class="text-[9px] font-extrabold uppercase text-amber-400">Super Admin</div>
+                        <div id="sidebarUserName" class="font-bold text-white truncate">Administrator</div>
+                    </div>
+                    <button onclick="confirmLogout()" title="Logout" class="text-slate-400 hover:text-rose-400 p-1"><i data-lucide="log-out" class="w-4 h-4"></i></button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT AREA -->
+        <div class="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
+            <!-- HEADER -->
+            <header class="h-16 shrink-0 border-b border-slate-800/80 px-4 sm:px-6 flex items-center justify-between bg-[#0d1322]/80 backdrop-blur-md">
+                <div class="flex items-center gap-3">
+                    <button onclick="toggleMobileSidebar(true)" class="md:hidden p-2 text-slate-400 hover:bg-slate-800 rounded-xl border border-slate-800">
+                        <i data-lucide="menu" class="w-5 h-5"></i>
+                    </button>
+                    <h1 id="pageTitle" class="text-base sm:text-lg font-bold text-white tracking-wide">Analytical Dashboard</h1>
+                </div>
+
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <button id="headerQrBtn" onclick="openPhotoViewer(appState.config.paymentQrUrl)" class="hidden p-2 text-amber-400 hover:bg-amber-500/10 rounded-xl border border-amber-500/30 transition-all" title="View Payment QR Code">
+                        <i data-lucide="qr-code" class="w-4 h-4"></i>
+                    </button>
+                    
+                    <button onclick="toggleThemeMode()" class="p-2 text-slate-400 hover:bg-slate-800 rounded-xl border border-slate-800 transition-all">
+                        <i id="themeIcon" data-lucide="moon" class="w-4 h-4"></i>
+                    </button>
+
+                    <button onclick="confirmLogout()" class="p-2 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-xl border border-rose-500/30"><i data-lucide="log-out" class="w-4 h-4"></i></button>
+                </div>
+            </header>
+
+            <!-- PANE CONTAINER -->
+            <div class="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto max-w-6xl w-full mx-auto space-y-6">
+
+                <!-- 1. DASHBOARD PANE -->
+                <section id="pane-dashboard" class="space-y-6">
+                    <div class="flex flex-wrap justify-between items-center gap-3">
+                        <div>
+                            <h2 class="text-2xl font-black text-white">Festival Analytical Overview</h2>
+                            <p class="text-xs text-slate-400 mt-0.5">Real-time collections, balance summaries & operational status</p>
+                        </div>
+                        <div id="dashboardTodayCollectionBadge" class="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs px-4 py-2 rounded-2xl font-bold flex items-center gap-2">
+                            <i data-lucide="calendar" class="w-4 h-4"></i> Today's Collection: <span id="cardTodayCollection" class="font-extrabold text-white">₹0</span>
+                        </div>
+                    </div>
+
+                    <!-- COUNTDOWN TIMER CARD -->
+                    <div id="dashboardCountdownCard" class="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 rounded-3xl shadow-xl p-5 text-slate-950 font-bold gold-btn-glow">
+                        <div class="flex flex-wrap items-center justify-between gap-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-2xl bg-black/15 flex items-center justify-center">
+                                    <i data-lucide="hourglass" class="w-5 h-5 text-slate-950 animate-spin"></i>
+                                </div>
+                                <div>
+                                    <span id="dashboardCountdownLabel" class="text-xs uppercase tracking-wider opacity-90 block">Countdown to Festival</span>
+                                    <div class="text-lg font-black tracking-wide dynamicFestivalName">Vinayaka Chavithi 2026</div>
+                                </div>
+                            </div>
+                            <div id="dashboardCountdownGrid" class="grid grid-cols-4 gap-2 sm:gap-3 text-center">
+                                <div class="bg-black/15 backdrop-blur-md rounded-2xl px-3 py-2 min-w-[60px]">
+                                    <div id="cdDays" class="text-2xl sm:text-3xl font-black tabular-nums">0</div>
+                                    <div class="text-[9px] uppercase tracking-wider opacity-80">Days</div>
+                                </div>
+                                <div class="bg-black/15 backdrop-blur-md rounded-2xl px-3 py-2 min-w-[60px]">
+                                    <div id="cdHours" class="text-2xl sm:text-3xl font-black tabular-nums">00</div>
+                                    <div class="text-[9px] uppercase tracking-wider opacity-80">Hrs</div>
+                                </div>
+                                <div class="bg-black/15 backdrop-blur-md rounded-2xl px-3 py-2 min-w-[60px]">
+                                    <div id="cdMinutes" class="text-2xl sm:text-3xl font-black tabular-nums">00</div>
+                                    <div class="text-[9px] uppercase tracking-wider opacity-80">Min</div>
+                                </div>
+                                <div class="bg-black/15 backdrop-blur-md rounded-2xl px-3 py-2 min-w-[60px]">
+                                    <div id="cdSeconds" class="text-2xl sm:text-3xl font-black tabular-nums">00</div>
+                                    <div class="text-[9px] uppercase tracking-wider opacity-80">Sec</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ADMIN ANALYTICAL SUMMARY -->
+                    <div id="dashboardAdminSection" class="space-y-6">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div class="bg-emerald-600/90 border border-emerald-500/30 p-5 rounded-3xl shadow-xl text-white">
+                                <p class="text-[10px] font-bold uppercase tracking-wider opacity-80">Total Collections Received</p>
+                                <h3 id="cardCollected" class="text-3xl font-black mt-1 font-mono">₹0</h3>
+                            </div>
+                            <div class="bg-rose-600/90 border border-rose-500/30 p-5 rounded-3xl shadow-xl text-white">
+                                <p class="text-[10px] font-bold uppercase tracking-wider opacity-80">Total Expenses Debited</p>
+                                <h3 id="cardExpenses" class="text-3xl font-black mt-1 font-mono">₹0</h3>
+                            </div>
+                            <div class="bg-indigo-600/90 border border-indigo-500/30 p-5 rounded-3xl shadow-xl text-white">
+                                <p class="text-[10px] font-bold uppercase tracking-wider opacity-80">Net Current Balance</p>
+                                <h3 id="cardBalance" class="text-3xl font-black mt-1 font-mono">₹0</h3>
+                            </div>
+                            <div class="bg-amber-600/90 border border-amber-500/30 p-5 rounded-3xl shadow-xl text-white">
+                                <p class="text-[10px] font-bold uppercase tracking-wider opacity-80">Pending Pledges</p>
+                                <h3 id="cardPending" class="text-3xl font-black mt-1 font-mono">₹0</h3>
+                            </div>
+                        </div>
+
+                        <!-- STAT COUNTERS GRID -->
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+                            <div class="glass-panel p-4 rounded-2xl flex items-center gap-3 border border-slate-800">
+                                <div class="p-2.5 bg-indigo-500/10 text-indigo-400 rounded-xl"><i data-lucide="users" class="w-5 h-5"></i></div>
+                                <div>
+                                    <div class="text-slate-400 text-[10px] font-bold uppercase">Committee Members</div>
+                                    <div id="lblCountMembers" class="text-xl font-black mt-0.5">0</div>
+                                </div>
+                            </div>
+                            <div class="glass-panel p-4 rounded-2xl flex items-center gap-3 border border-slate-800">
+                                <div class="p-2.5 bg-amber-500/10 text-amber-400 rounded-xl"><i data-lucide="award" class="w-5 h-5"></i></div>
+                                <div>
+                                    <div class="text-slate-400 text-[10px] font-bold uppercase">Brand Sponsors</div>
+                                    <div id="lblCountSponsors" class="text-xl font-black mt-0.5">0</div>
+                                </div>
+                            </div>
+                            <div class="glass-panel p-4 rounded-2xl flex items-center gap-3 border border-slate-800">
+                                <div class="p-2.5 bg-sky-500/10 text-sky-400 rounded-xl"><i data-lucide="shield" class="w-5 h-5"></i></div>
+                                <div>
+                                    <div class="text-slate-400 text-[10px] font-bold uppercase">System Admins</div>
+                                    <div id="lblCountAdmins" class="text-xl font-black mt-0.5">1</div>
+                                </div>
+                            </div>
+                            <div class="glass-panel p-4 rounded-2xl flex items-center gap-3 border border-slate-800">
+                                <div class="p-2.5 bg-rose-500/10 text-rose-400 rounded-xl"><i data-lucide="image" class="w-5 h-5"></i></div>
+                                <div>
+                                    <div class="text-slate-400 text-[10px] font-bold uppercase">Media Gallery Photos</div>
+                                    <div id="lblCountGallery" class="text-xl font-black mt-0.5">0</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- COLLECTOR BREAKDOWN TABLE -->
+                        <div class="glass-panel rounded-3xl overflow-hidden border border-slate-800">
+                            <div class="p-4 bg-slate-900/60 border-b border-slate-800 font-bold text-xs uppercase text-amber-400 flex items-center gap-2">
+                                <i data-lucide="pie-chart" class="w-4 h-4"></i> Collector Collection Breakdown
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs">
+                                    <thead class="bg-slate-950/80 text-slate-400 uppercase font-semibold">
+                                        <tr><th class="p-3.5">Collector / Admin Name</th><th class="p-3.5 text-right">Total Collection Collected</th></tr>
+                                    </thead>
+                                    <tbody id="dashboardBreakdownRows" class="divide-y divide-slate-800/80 text-slate-200"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PEOPLE / PUBLIC DEVOTEE SECTION -->
+                    <div id="dashboardPeopleSection" class="hidden space-y-6">
+                        <div class="glass-panel rounded-3xl overflow-hidden border border-slate-800">
+                            <div class="p-4 bg-slate-900/60 border-b border-slate-800 font-bold text-xs uppercase text-amber-400 flex items-center gap-2">
+                                <i data-lucide="image" class="w-4 h-4"></i> Photo Gallery Slideshow
+                            </div>
+                            <div class="relative w-full aspect-video bg-slate-950 flex items-center justify-center overflow-hidden">
+                                <img id="dashboardSlideshowImg" src="" class="hidden w-full h-full object-contain">
+                                <div id="dashboardSlideshowEmpty" class="text-slate-500 text-xs italic">No photos uploaded to the gallery yet.</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. DONATIONS PANE -->
+                <section id="pane-donations" class="space-y-6 hidden">
+                    <div class="flex flex-wrap justify-between items-center gap-3">
+                        <div>
+                            <h2 class="text-xl font-bold text-white">Donation Registers</h2>
+                            <p class="text-xs text-slate-400">Issue receipts & manage devotee pledges</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="printDonationList()" class="glass-panel text-slate-200 font-bold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl flex items-center gap-1.5 hover:bg-slate-800 transition-all">
+                                <i data-lucide="printer" class="w-4 h-4"></i> Print Register
+                            </button>
+                            <button onclick="openAddDonationModal()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl flex items-center gap-1.5 gold-btn-glow transition-all">
+                                <i data-lucide="plus" class="w-4 h-4"></i> Add New Donation
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- FILTERS -->
+                    <div class="glass-panel p-4 rounded-2xl border border-slate-800 grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+                        <div>
+                            <label class="block font-bold text-slate-400 mb-1">Search Devotee / Receipt #</label>
+                            <input type="text" id="filterDevoteeName" oninput="syncDonationsTable()" placeholder="Devotee name or ref..." class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-400 mb-1">Payment Mode</label>
+                            <select id="filterPaymentMode" onchange="syncDonationsTable()" class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500">
+                                <option value="ALL">All Payment Modes</option>
+                                <option value="Cash">Cash Mode Only</option>
+                                <option value="UPI">UPI Digital Only</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-400 mb-1">Status</label>
+                            <select id="filterStatus" onchange="syncDonationsTable()" class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500">
+                                <option value="ALL">All Statuses</option>
+                                <option value="Complete">Complete (Received)</option>
+                                <option value="Pending">Pending Pledge</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-400 mb-1">Date</label>
+                            <input type="date" id="filterDateValue" onchange="syncDonationsTable()" class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500">
+                        </div>
+                    </div>
+
+                    <!-- DONATIONS TABLE -->
+                    <div class="glass-panel rounded-3xl overflow-hidden border border-slate-800 shadow-xl">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-950/80 text-slate-400 uppercase font-semibold">
+                                    <tr>
+                                        <th class="p-3.5">Receipt No</th>
+                                        <th class="p-3.5">Devotee Name</th>
+                                        <th class="p-3.5">Amount (₹)</th>
+                                        <th class="p-3.5">Mode</th>
+                                        <th class="p-3.5">Date</th>
+                                        <th class="p-3.5">Recorded By</th>
+                                        <th class="p-3.5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tableDonationsBody" class="divide-y divide-slate-800/80 text-slate-200"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. EXPENSES PANE -->
+                <section id="pane-expenses" class="space-y-6 hidden">
+                    <div class="flex flex-wrap justify-between items-center gap-3">
+                        <div>
+                            <h2 class="text-xl font-bold text-white">Expense Tracker</h2>
+                            <p class="text-xs text-slate-400">Log debits, purchasing & decoration costs</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="printExpenseList()" class="glass-panel text-slate-200 font-bold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl flex items-center gap-1.5 hover:bg-slate-800 transition-all">
+                                <i data-lucide="printer" class="w-4 h-4"></i> Print List
+                            </button>
+                            <button onclick="openAddExpenseModal()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl flex items-center gap-1.5 gold-btn-glow transition-all">
+                                <i data-lucide="plus" class="w-4 h-4"></i> Log Expense Detail
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-4 rounded-2xl border border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                        <div>
+                            <label class="block font-bold text-slate-400 mb-1">Search Description...</label>
+                            <input type="text" id="filterExpenseDesc" oninput="syncExpensesTable()" placeholder="Purpose or ref..." class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-400 mb-1">Recorded By</label>
+                            <select id="filterExpenseRecordedBy" onchange="syncExpensesTable()" class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500">
+                                <option value="ALL">All Recorders</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-400 mb-1">Filter Date</label>
+                            <input type="date" id="filterExpenseDate" onchange="syncExpensesTable()" class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500">
+                        </div>
+                    </div>
+
+                    <div class="glass-panel rounded-3xl overflow-hidden border border-slate-800 shadow-xl">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-950/80 text-slate-400 uppercase font-semibold">
+                                    <tr>
+                                        <th class="p-3.5">Description Purpose</th>
+                                        <th class="p-3.5">Amount Debited</th>
+                                        <th class="p-3.5">Date</th>
+                                        <th class="p-3.5">Recorded By</th>
+                                        <th class="p-3.5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tableExpensesBody" class="divide-y divide-slate-800/80 text-slate-200"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 4. COMMITTEE PANE -->
+                <section id="pane-committee" class="space-y-6 hidden">
+                    <div class="flex flex-wrap justify-between items-center gap-3">
+                        <div>
+                            <h2 class="text-xl font-bold text-white">Committee Members Directory</h2>
+                            <p class="text-xs text-slate-400">Organizers, coordinators and contact handles</p>
+                        </div>
+                        <button id="addMemberBtn" onclick="openAddMemberModal()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl flex items-center gap-1.5 gold-btn-glow transition-all">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Add Member
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4" id="committeeCardsLayout"></div>
+                </section>
+
+                <!-- 5. SPONSORS PANE -->
+                <section id="pane-sponsors" class="space-y-6 hidden">
+                    <div class="flex flex-wrap justify-between items-center gap-3">
+                        <div>
+                            <h2 class="text-xl font-bold text-white">Festival Sponsorships & Patrons</h2>
+                            <p class="text-xs text-slate-400">Brand sponsors, donors and contributions</p>
+                        </div>
+                        <button onclick="toggleModalVisibility('sponsorModal', true)" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl flex items-center gap-1.5 gold-btn-glow transition-all">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Add Sponsor
+                        </button>
+                    </div>
+
+                    <div class="glass-panel rounded-3xl overflow-hidden border border-slate-800 shadow-xl">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-950/80 text-slate-400 uppercase font-semibold">
+                                <tr>
+                                    <th class="p-3.5">Sponsor Name</th>
+                                    <th class="p-3.5">Contact Info</th>
+                                    <th class="p-3.5">Contribution Details</th>
+                                    <th class="p-3.5 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableSponsorsBody" class="divide-y divide-slate-800/80 text-slate-200"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- 6. PRASADAM PANE -->
+                <section id="pane-prasadam" class="space-y-6 hidden">
+                    <div class="flex flex-wrap justify-between items-center gap-3">
+                        <div>
+                            <h2 class="text-xl font-bold text-white">Prasadam Distribution Schedule</h2>
+                            <p class="text-xs text-slate-400">Daily morning & evening prasadam organizers</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="printPrasadamList()" class="glass-panel text-slate-200 font-bold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl flex items-center gap-1.5 hover:bg-slate-800 transition-all">
+                                <i data-lucide="printer" class="w-4 h-4"></i> Print Schedule
+                            </button>
+                            <button onclick="openPrasadamAddModal()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl flex items-center gap-1.5 gold-btn-glow transition-all">
+                                <i data-lucide="plus" class="w-4 h-4"></i> Add Prasadam Entry
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-4 rounded-2xl border border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                        <div>
+                            <label class="block font-bold text-slate-400 mb-1">Quick Date Filter</label>
+                            <select id="filterPrasadamQuick" onchange="syncPrasadamTable()" class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500">
+                                <option value="ALL">All Dates</option>
+                                <option value="TODAY">Today</option>
+                                <option value="TOMORROW">Tomorrow</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-400 mb-1">Session</label>
+                            <select id="filterPrasadamSession" onchange="syncPrasadamTable()" class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500">
+                                <option value="ALL">Morning & Evening</option>
+                                <option value="Morning">Morning Session</option>
+                                <option value="Evening">Evening Session</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-400 mb-1">Specific Date</label>
+                            <input type="date" id="filterPrasadamDate" onchange="syncPrasadamTable()" class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500">
+                        </div>
+                    </div>
+
+                    <div class="glass-panel rounded-3xl overflow-hidden border border-slate-800 shadow-xl">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-950/80 text-slate-400 uppercase font-semibold">
+                                <tr>
+                                    <th class="p-3.5">Distributor Name</th>
+                                    <th class="p-3.5">Mobile Number</th>
+                                    <th class="p-3.5">Food Item</th>
+                                    <th class="p-3.5">Date</th>
+                                    <th class="p-3.5">Session</th>
+                                    <th class="p-3.5">Recorded By</th>
+                                    <th class="p-3.5 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablePrasadamBody" class="divide-y divide-slate-800/80 text-slate-200"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- 7. GALLERY PANE -->
+                <section id="pane-gallery" class="space-y-6 hidden">
+                    <div class="flex flex-wrap justify-between items-center gap-3">
+                        <div>
+                            <h2 class="text-xl font-bold text-white">Media Archive Gallery</h2>
+                            <p class="text-xs text-slate-400">Photos & moments from Vinayaka Chavithi celebrations</p>
+                        </div>
+                    </div>
+                    
+                    <div id="galleryUploadPanel" class="hidden glass-panel p-5 rounded-2xl border border-slate-800 text-xs space-y-3">
+                        <p class="font-bold text-amber-400 uppercase tracking-wider text-[11px]">Upload Photos to Media Archive</p>
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                            <input type="file" id="galleryFileInput" accept="image/*" multiple onchange="uploadGalleryImageFile(event)" class="bg-[#0b0f19] border border-slate-800 text-slate-400 rounded-xl px-3.5 py-2.5 focus:outline-none text-xs file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-white hover:file:bg-slate-700">
+                            <span class="text-slate-400 text-[11px]">Parallel batch upload pipeline with downsampling</span>
+                        </div>
+                        <p id="galleryUploadStatus" class="hidden text-xs text-emerald-400 font-bold"></p>
+                    </div>
+
+                    <div id="galleryContainerLayout" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+                </section>
+
+                <!-- 8. EVENTS PANE -->
+                <section id="pane-events" class="space-y-6 hidden">
+                    <div class="flex flex-wrap justify-between items-center gap-3">
+                        <div>
+                            <h2 class="text-xl font-bold text-white">Festival Event Schedule</h2>
+                            <p class="text-xs text-slate-400">Puja, Aarti, Bhajans & Cultural Programs</p>
+                        </div>
+                        <button id="addEventBtn" onclick="openEventAddModal()" class="hidden bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl flex items-center gap-1.5 gold-btn-glow transition-all">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Add Event
+                        </button>
+                    </div>
+
+                    <div class="glass-panel rounded-3xl overflow-hidden border border-slate-800 shadow-xl">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-950/80 text-slate-400 uppercase font-semibold">
+                                <tr>
+                                    <th class="p-3.5">Date</th>
+                                    <th class="p-3.5">Event Name</th>
+                                    <th class="p-3.5">Session</th>
+                                    <th class="p-3.5 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableEventsBody" class="divide-y divide-slate-800/80 text-slate-200"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- 9. PROCESSION PANE (LEAFLET MAP) -->
+                <section id="pane-procession" class="space-y-6 hidden">
+                    <div class="flex flex-wrap justify-between items-center gap-3">
+                        <div>
+                            <h2 class="text-xl font-bold text-white">Nimarjan Procession Route & Live Tracker</h2>
+                            <p class="text-xs text-slate-400">Interactive Leaflet route map, street stops & live GPS location tracking</p>
+                        </div>
+                    </div>
+
+                    <div id="processionLiveBanner" class="rounded-2xl p-4 border shadow-md font-bold text-xs flex items-center gap-3"></div>
+
+                    <div class="glass-panel p-4 rounded-3xl border border-slate-800 space-y-3 shadow-2xl">
+                        <div class="flex flex-wrap justify-between items-center gap-2">
+                            <p class="font-bold text-amber-400 uppercase tracking-wider text-[11px]">Interactive Street Route Map</p>
+                            <div class="flex flex-wrap gap-2" id="processionLiveGpsWrap">
+                                <button type="button" id="liveGpsToggleBtn" onclick="toggleLiveGps()" class="bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl inline-flex items-center gap-1.5 shadow-lg">
+                                    <i data-lucide="satellite" class="w-4 h-4"></i> <span id="liveGpsToggleLabel">Start Live GPS</span>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="processionMap"></div>
+
+                        <div id="processionStopPicker" class="space-y-2">
+                            <p id="processionMapPickHint" class="text-[11px] text-slate-400 italic">Tip: Search an address or click anywhere on the map to pin a location for your next stop.</p>
+                            <div class="flex flex-wrap gap-2">
+                                <input type="text" id="stopAddressSearch" placeholder="Search address or street location..." class="flex-1 min-w-[200px] bg-[#0b0f19] border border-slate-800 rounded-xl px-3.5 py-2 text-white text-xs focus:outline-none focus:border-amber-500">
+                                <button type="button" onclick="searchStopAddress()" class="bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs px-4 py-2 rounded-xl inline-flex items-center gap-1">
+                                    <i data-lucide="search" class="w-3.5 h-3.5"></i> Find Location
+                                </button>
+                            </div>
+                            <div id="pickedLocationBadge" class="hidden text-xs font-bold text-emerald-400 flex items-center gap-1">
+                                <i data-lucide="map-pin" class="w-4 h-4"></i> <span id="pickedLocationText"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-5 rounded-3xl border border-slate-800 space-y-3 shadow-xl" id="processionManageCard">
+                        <p class="font-bold text-amber-400 uppercase tracking-wider text-[11px]">Add Street Stop to Procession Route</p>
+                        <form onsubmit="addProcessionStop(event)" class="flex flex-wrap gap-2">
+                            <input type="text" id="newStopName" placeholder="e.g. Main Temple Street / Lake Road" required class="flex-1 min-w-[200px] bg-[#0b0f19] border border-slate-800 rounded-xl px-3.5 py-2 text-white text-xs focus:outline-none focus:border-amber-500">
+                            <button type="submit" id="stopSubmitBtn" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs px-4 py-2 rounded-xl inline-flex items-center gap-1 gold-btn-glow">
+                                <i data-lucide="plus" class="w-4 h-4"></i> Add Stop
+                            </button>
+                        </form>
+                        <div class="flex flex-wrap gap-2 pt-1">
+                            <button onclick="startProcession()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2 rounded-xl inline-flex items-center gap-1.5 shadow-lg">
+                                <i data-lucide="play" class="w-4 h-4"></i> Start Procession
+                            </button>
+                            <button onclick="advanceProcession()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2 rounded-xl inline-flex items-center gap-1.5 shadow-lg">
+                                <i data-lucide="arrow-right-circle" class="w-4 h-4"></i> Mark Reached / Next Stop
+                            </button>
+                            <button onclick="resetProcession()" class="bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs px-4 py-2 rounded-xl inline-flex items-center gap-1.5">
+                                <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Reset Status
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="processionStopsList" class="space-y-2"></div>
+                </section>
+
+                <!-- 10. MANAGE ADMINS PANE -->
+                <section id="pane-manageAdmins" class="space-y-6 hidden">
+                    <div class="glass-panel border border-amber-500/30 p-6 rounded-3xl space-y-4 shadow-xl">
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                <h3 class="text-sm font-bold text-amber-400 uppercase tracking-wider">Pending User Registration Requests</h3>
+                                <p class="text-xs text-slate-400 mt-0.5">Approve or reject account requests from new users</p>
+                            </div>
+                            <button onclick="loadPendingRegistrations()" class="text-xs font-bold border border-slate-700 hover:bg-slate-800 px-3.5 py-2 rounded-xl">Refresh List</button>
+                        </div>
+                        <div id="pendingRegistrationsList" class="space-y-2"></div>
+                    </div>
+
+                    <div class="glass-panel rounded-3xl overflow-hidden border border-slate-800 shadow-xl">
+                        <div class="p-4 bg-slate-900/60 border-b border-slate-800 font-bold text-xs uppercase text-slate-300">
+                            Approved System Accounts
+                        </div>
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-950/80 text-slate-400 uppercase font-semibold">
+                                <tr><th class="p-3.5">Mobile Number</th><th class="p-3.5">Role</th><th class="p-3.5 text-right">Access Status</th></tr>
+                            </thead>
+                            <tbody id="tableAdminsBody" class="divide-y divide-slate-800/80 text-slate-200"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- 11. AUDIT LOGS PANE -->
+                <section id="pane-auditLogs" class="space-y-4 hidden">
+                    <div class="glass-panel p-5 rounded-3xl h-[650px] flex flex-col shadow-xl border border-slate-800">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                                <i data-lucide="terminal" class="w-4 h-4 text-emerald-400"></i> Audit Action Timeline Log
+                            </div>
+                            <button onclick="clearAuditLogs()" class="text-rose-400 border border-rose-500/30 px-3 py-1 rounded-xl text-xs font-bold inline-flex items-center gap-1 hover:bg-rose-500/10">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Clear Logs
+                            </button>
+                        </div>
+                        <div id="terminalLogBox" class="flex-1 bg-[#050811] p-4 font-mono text-[11px] text-emerald-400 rounded-2xl overflow-y-auto space-y-1.5 border border-slate-800/80"></div>
+                    </div>
+                </section>
+
+                <!-- 12. NOTES & DOCUMENTS PANE -->
+                <section id="pane-notes" class="space-y-6 hidden">
+                    <div class="glass-panel p-6 rounded-3xl shadow-xl border border-slate-800 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Super Admin Notepad</div>
+                            <button onclick="saveNotes()" id="saveNotesBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 shadow-lg">
+                                <i data-lucide="save" class="w-3.5 h-3.5"></i> Save Notes
+                            </button>
+                        </div>
+                        <textarea id="notesTextarea" rows="12" placeholder="Write operational notes, guidelines, or reminders here..." class="w-full bg-[#0b0f19] border border-slate-800 rounded-2xl p-4 text-xs text-slate-200 focus:outline-none focus:border-amber-500 font-mono resize-y"></textarea>
+                    </div>
+
+                    <div class="glass-panel p-6 rounded-3xl shadow-xl border border-slate-800 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-bold text-white uppercase tracking-wider">Official Permission Document (PDF)</h3>
+                                <p class="text-xs text-slate-400 mt-0.5">Upload police or municipal permission PDF for quick access</p>
+                            </div>
+                            <label class="bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-lg">
+                                <i data-lucide="upload" class="w-3.5 h-3.5"></i> Upload PDF
+                                <input type="file" accept="application/pdf" onchange="uploadPermissionPdf(event)" class="hidden">
+                            </label>
+                        </div>
+                        
+                        <div id="permissionPdfEmpty" class="text-xs text-slate-500 italic py-2">No official permission document uploaded yet.</div>
+                        
+                        <div id="permissionPdfCard" class="hidden flex items-center justify-between gap-3 bg-slate-900 border border-slate-800 rounded-2xl p-4">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="file-text" class="w-6 h-6 text-rose-500"></i>
+                                <div>
+                                    <div id="permissionPdfName" class="text-xs font-bold text-white"></div>
+                                    <div id="permissionPdfMeta" class="text-[10px] text-slate-400 mt-0.5"></div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openPermissionPdf()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1">
+                                    <i data-lucide="external-link" class="w-3.5 h-3.5"></i> View PDF
+                                </button>
+                                <button onclick="removePermissionPdf()" class="bg-rose-600 hover:bg-rose-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Remove
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 13. CORE SETTINGS PANE -->
+                <section id="pane-coreSettings" class="space-y-6 hidden">
+                    <div id="cloudSyncStatusBox" class="glass-panel border border-slate-800 p-5 rounded-3xl text-xs flex items-center gap-4">
+                        <i data-lucide="cloud" class="w-6 h-6 text-amber-400"></i>
+                        <div>
+                            <div id="cloudSyncStatusText" class="font-bold text-white text-sm">Real-time Data Synchronizer Status</div>
+                            <div class="text-slate-400 text-xs mt-0.5">Instant sub-millisecond local BroadcastChannel tab sync + Supabase Cloud Sync active.</div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel border border-slate-800 p-6 sm:p-8 rounded-3xl space-y-6 shadow-xl text-xs">
+                        <h3 class="text-base font-bold text-white uppercase tracking-wider">Festival Configuration & Assets</h3>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block font-bold text-slate-400 uppercase text-[10px] tracking-wider mb-1.5">Festival Name</label>
+                                <input type="text" id="cfgFestivalName" class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-amber-500">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-400 uppercase text-[10px] tracking-wider mb-1.5">Festival Year</label>
+                                <input type="text" id="cfgFestivalYear" class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-amber-500">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-400 uppercase text-[10px] tracking-wider mb-1.5">Festival Countdown Target Date</label>
+                                <input type="date" id="cfgEventDate" class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-amber-500">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-400 uppercase text-[10px] tracking-wider mb-1.5">Receipt Prefix</label>
+                                <input type="text" id="cfgReceiptPrefix" class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-amber-500">
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="block font-bold text-slate-400 uppercase text-[10px] tracking-wider mb-1.5">Central UPI ID for Payments</label>
+                                <input type="text" id="cfgUpiAddress" placeholder="e.g. 9876543210@ybl" class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-amber-500">
+                            </div>
+                        </div>
+
+                        <div class="border-t border-slate-800 pt-5 space-y-3">
+                            <div class="font-bold text-slate-300 uppercase text-[10px] tracking-wider">Access Control Toggles</div>
+                            <label class="flex items-center justify-between gap-3 bg-[#0b0f19] border border-slate-800 rounded-2xl px-4 py-3 cursor-pointer">
+                                <span>
+                                    <span class="block font-bold text-white text-xs">Allow Public Account Registration</span>
+                                    <span class="block text-slate-400 text-[10px]">Lets new users submit account registration requests from login screen</span>
+                                </span>
+                                <input type="checkbox" id="cfgRegistrationEnabled" class="w-5 h-5 accent-amber-500">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 bg-[#0b0f19] border border-slate-800 rounded-2xl px-4 py-3 cursor-pointer">
+                                <span>
+                                    <span class="block font-bold text-white text-xs">Nimarjan Procession Map Access for Admins</span>
+                                    <span class="block text-slate-400 text-[10px]">Grant route map access to standard operator admins</span>
+                                </span>
+                                <input type="checkbox" id="cfgMapEnabledForAdmin" class="w-5 h-5 accent-amber-500">
+                            </label>
+                        </div>
+
+                        <div class="flex justify-end pt-2">
+                            <button onclick="saveCoreSettingsConfig()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold px-6 py-3 rounded-xl transition-all gold-btn-glow">Update Settings</button>
+                        </div>
+
+                        <!-- BACKUP & RESTORE -->
+                        <div class="border-t border-slate-800 pt-5 space-y-3">
+                            <div class="font-bold text-slate-300 uppercase text-[10px] tracking-wider">JSON Backup & Data Restoration</div>
+                            <p class="text-slate-400 text-xs">Download full JSON snapshot backup or restore previous data file.</p>
+                            <div class="flex flex-wrap gap-3">
+                                <button onclick="downloadJsonExport()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2.5 rounded-xl font-bold border border-slate-700 inline-flex items-center gap-1.5 text-xs">
+                                    <i data-lucide="download" class="w-4 h-4"></i> Download Full Backup JSON
+                                </button>
+                                <button onclick="document.getElementById('restoreFileInput').click()" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2.5 rounded-xl font-bold inline-flex items-center gap-1.5 text-xs shadow-lg">
+                                    <i data-lucide="upload" class="w-4 h-4"></i> Restore From Backup File
+                                </button>
+                                <input type="file" id="restoreFileInput" accept="application/json" class="hidden" onchange="handleRestoreFileUpload(event)">
+                            </div>
+                        </div>
+
+                        <!-- DATE-WISE PDF REPORT -->
+                        <div class="border-t border-slate-800 pt-5 space-y-3">
+                            <div class="font-bold text-slate-300 uppercase text-[10px] tracking-wider">Date-Wise PDF Report Exporter</div>
+                            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                                <input type="date" id="reportDonationDate" class="bg-[#0b0f19] border border-slate-800 text-white rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500 text-xs">
+                                <select id="reportDonationType" class="bg-[#0b0f19] border border-slate-800 text-white rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500 text-xs">
+                                    <option value="received">Donations Received</option>
+                                    <option value="expenses">Expenses Logged</option>
+                                    <option value="pending">Pending Pledges</option>
+                                    <option value="all">Full Daily Consolidated Report</option>
+                                </select>
+                                <button onclick="downloadDonationsByDatePdf()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-xs uppercase tracking-wider inline-flex items-center justify-center gap-1.5 shadow-lg">
+                                    <i data-lucide="file-down" class="w-4 h-4"></i> Export PDF Report
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALS SECTION -->
+    <div id="shareReceiptCapture" style="position: fixed; left: -9999px; top: 0; z-index: -1;"></div>
+
+    <!-- PRINT RECEIPT MODAL -->
+    <div id="printReceiptModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel text-white max-w-sm w-full p-6 rounded-3xl shadow-2xl border border-slate-700 font-mono text-xs space-y-4">
+            <div class="relative z-10 space-y-3">
+                <div class="text-center pb-3 border-b border-dashed border-slate-700">
+                    <h4 class="font-black text-base uppercase text-amber-400 tracking-wide dynamicFestivalName">SRI GOWRI PUTRA YOUTH</h4>
+                    <p class="text-[10px] text-slate-400">Vinayaka Chaturthi Operations Desk — <span class="dynamicFestivalYear">2026</span></p>
+                </div>
+                <div class="space-y-1.5 py-2 text-slate-200" id="printReceiptContent"></div>
+                <div id="receiptUpiContainer" class="text-center text-[11px]"></div>
+                <div class="pt-3 border-t border-dashed border-slate-700 text-center text-[10px] text-amber-400/90 font-bold">May Lord Ganesha Bless You Plentifully.</div>
+                
+                <div class="flex gap-2 justify-end pt-3 no-print">
+                    <button onclick="shareReceiptToWhatsApp()" class="bg-[#25D366] hover:bg-emerald-500 text-slate-950 font-extrabold px-3.5 py-2 rounded-xl text-xs inline-flex items-center gap-1 shadow-lg">
+                        <i data-lucide="share-2" class="w-3.5 h-3.5"></i> WhatsApp
+                    </button>
+                    <button onclick="triggerReceiptPrint()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs shadow-lg">
+                        Print
+                    </button>
+                    <button onclick="toggleModalVisibility('printReceiptModal', false)" class="bg-slate-800 text-slate-300 px-3.5 py-2 rounded-xl text-xs font-bold">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PHOTO VIEWER LIGHTBOX -->
+    <div id="photoViewModal" class="fixed inset-0 bg-black/90 z-[90] hidden flex items-center justify-center p-4" onclick="if(event.target.id==='photoViewModal') toggleModalVisibility('photoViewModal', false)">
+        <div class="relative max-w-4xl w-full">
+            <button onclick="toggleModalVisibility('photoViewModal', false)" class="absolute -top-10 right-0 text-white hover:text-amber-400 p-2"><i data-lucide="x" class="w-6 h-6"></i></button>
+            <img id="photoViewImage" src="" class="w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl">
+        </div>
+    </div>
+
+    <!-- DONATION MODAL -->
+    <div id="donationModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel border border-slate-700 max-w-md w-full rounded-3xl p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                <h3 class="text-sm font-bold uppercase text-white" id="donationModalTitle">Register Devotee Donation</h3>
+                <button onclick="toggleModalVisibility('donationModal', false)" class="text-slate-400 hover:text-white p-1"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <form id="donationForm" onsubmit="submitDonationRecord(event)" class="space-y-3.5 text-xs text-slate-200">
+                <input type="hidden" id="editDonationId">
+                <div>
+                    <label class="block font-bold mb-1 text-slate-400">Full Devotee Name</label>
+                    <input type="text" id="addDonName" required class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-amber-500">
+                </div>
+                <div>
+                    <label class="block font-bold mb-1 text-slate-400">Donation Amount (₹)</label>
+                    <input type="number" id="addDonAmount" min="1" required class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-amber-500 font-mono">
+                </div>
+                <div>
+                    <label class="block font-bold mb-1 text-slate-400">Payment Mode</label>
+                    <select id="addDonMode" class="w-full bg-[#0b0f19] border border-slate-800 text-white rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500">
+                        <option value="Cash">Cash Payment</option>
+                        <option value="UPI">UPI Digital Transfer</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-bold mb-1 text-slate-400">Status</label>
+                    <select id="addDonStatus" class="w-full bg-[#0b0f19] border border-slate-800 text-white rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500">
+                        <option value="Complete">Complete (Received)</option>
+                        <option value="Pending">Pending Pledge</option>
+                    </select>
+                </div>
+                <button type="submit" id="donationSubmitBtn" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold py-3 rounded-xl uppercase tracking-wider gold-btn-glow mt-2">Save Donation Record</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- EXPENSE MODAL -->
+    <div id="expenseModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel border border-slate-700 max-w-md w-full rounded-3xl p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                <h3 class="text-sm font-bold uppercase text-white" id="expenseModalTitle">Log Expense Detail</h3>
+                <button onclick="toggleModalVisibility('expenseModal', false)" class="text-slate-400 hover:text-white p-1"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <form id="expenseForm" onsubmit="submitExpenseRecord(event)" class="space-y-3.5 text-xs text-slate-200">
+                <input type="hidden" id="editExpenseId">
+                <div>
+                    <label class="block font-bold mb-1 text-slate-400">Purpose / Description</label>
+                    <input type="text" id="addExpDesc" required placeholder="e.g. Flower Decoration & Lighting" class="w-full bg-[#0b0f19] border border-slate-800 text-white rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500">
+                </div>
+                <div>
+                    <label class="block font-bold mb-1 text-slate-400">Amount (₹)</label>
+                    <input type="number" id="addExpAmount" min="1" required class="w-full bg-[#0b0f19] border border-slate-800 text-white rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500 font-mono">
+                </div>
+                <div>
+                    <label class="block font-bold mb-1 text-slate-400">Date</label>
+                    <input type="date" id="addExpDate" required class="w-full bg-[#0b0f19] border border-slate-800 text-white rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500">
+                </div>
+                <button type="submit" id="expenseSubmitBtn" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold py-3 rounded-xl uppercase tracking-wider gold-btn-glow">Save Expense Record</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- COMMITTEE MEMBER MODAL -->
+    <div id="committeeModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel border border-slate-700 max-w-md w-full rounded-3xl p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                <h3 class="text-sm font-bold uppercase text-white" id="committeeModalTitle">Register Member</h3>
+                <button onclick="toggleModalVisibility('committeeModal', false)" class="text-slate-400 hover:text-white p-1"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <form id="memberForm" onsubmit="submitMemberRecord(event)" class="space-y-3.5 text-xs text-slate-200">
+                <input type="hidden" id="editMemberId">
+                <div>
+                    <label class="block font-bold mb-1 text-slate-400">Full Member Name</label>
+                    <input type="text" id="addMemName" required class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-amber-500">
+                </div>
+                <div>
+                    <label class="block font-bold mb-1 text-slate-400">Mobile Number</label>
+                    <input type="text" id="addMemPhone" required inputmode="tel" maxlength="15" class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-amber-500 font-mono">
+                </div>
+                <div>
+                    <label class="block font-bold mb-1 text-slate-400">Designation / Role</label>
+                    <select id="addMemRole" class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-amber-500">
+                        <option>President</option>
+                        <option>Vice President</option>
+                        <option>Secretary</option>
+                        <option>Treasurer</option>
+                        <option>Event Coordinator</option>
+                        <option>Prasadam In-Charge</option>
+                        <option>Committee Member</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-bold mb-1 text-slate-400">Profile Photo</label>
+                    <div class="flex items-center gap-3">
+                        <input type="file" id="memberAvatarInput" accept="image/jpeg,image/png,image/webp" onchange="previewMemberAvatar(event)" class="flex-1 bg-[#0b0f19] border border-slate-800 text-slate-400 rounded-xl px-3 py-2 text-xs">
+                        <img id="memberAvatarPreview" src="" class="hidden w-12 h-12 rounded-full object-cover border-2 border-amber-500">
+                    </div>
+                </div>
+                <button type="submit" id="memberSubmitBtn" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold py-3 rounded-xl uppercase tracking-wider gold-btn-glow">Save Member Profile</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- SPONSOR MODAL -->
+    <div id="sponsorModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel border border-slate-700 max-w-md w-full rounded-3xl p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                <h3 class="text-sm font-bold uppercase text-white" id="sponsorModalTitle">Add Sponsor</h3>
+                <button onclick="toggleModalVisibility('sponsorModal', false)" class="text-slate-400 hover:text-white p-1"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <form id="sponsorForm" onsubmit="submitSponsorRecord(event)" class="space-y-3.5 text-xs text-slate-200">
+                <input type="hidden" id="editSponsorId">
+                <div>
+                    <label class="block font-bold mb-1 text-slate-400">Sponsor / Enterprise Name</label>
+                    <input type="text" id="addSponName" required class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-amber-500">
+                </div>
+                <div>
+                    <label class="block font-bold mb-1 text-slate-400">Contribution Details</label>
+                    <input type="text" id="addSponDesc" required placeholder="e.g. Main Laddu Sponsor" class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-amber-500">
+                </div>
+                <div>
+                    <label class="block font-bold mb-1 text-slate-400">Contact Number</label>
+                    <input type="text" id="addSponContact" required class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-amber-500 font-mono">
+                </div>
+                <button type="submit" id="sponsorSubmitBtn" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold py-3 rounded-xl uppercase tracking-wider gold-btn-glow">Save Sponsor Profile</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- PRASADAM MODAL -->
+    <div id="prasadamModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel border border-slate-700 max-w-md w-full rounded-3xl p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                <h3 class="text-sm font-bold uppercase text-white" id="prasadamModalTitle">Add Prasadam Entry</h3>
+                <button onclick="toggleModalVisibility('prasadamModal', false)" class="text-slate-400 hover:text-white p-1"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <form id="prasadamForm" onsubmit="submitPrasadamRecord(event)" class="space-y-3.5 text-xs text-slate-200">
+                <input type="hidden" id="editPrasadamId">
+                <div>
+                    <label class="block font-bold mb-1 text-slate-400">Distributor Name</label>
+                    <input type="text" id="addPrasName" required class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-amber-500">
+                </div>
+                <div>
+                    <label class="block font-bold mb-1 text-slate-400">Mobile Number</label>
+                    <input type="tel" id="addPrasMobile" required placeholder="9876543210" class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-amber-500 font-mono">
+                </div>
+                <div>
+                    <label class="block font-bold mb-1 text-slate-400">Food Item</label>
+                    <input type="text" id="addPrasFoodItem" required placeholder="e.g. Pulihora & Laddu" class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-amber-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold mb-1 text-slate-400">Date</label>
+                        <input type="date" id="addPrasDate" required class="w-full bg-[#0b0f19] border border-slate-800 text-white rounded-xl px-3.5 py-2.5 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-1 text-slate-400">Session</label>
+                        <select id="addPrasSession" required class="w-full bg-[#0b0f19] border border-slate-800 text-white rounded-xl px-3.5 py-2.5 focus:outline-none">
+                            <option value="Morning">Morning</option>
+                            <option value="Evening">Evening</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" id="prasadamSubmitBtn" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold py-3 rounded-xl uppercase tracking-wider gold-btn-glow">Save Prasadam Entry</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- EVENT MODAL -->
+    <div id="eventsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel border border-slate-700 max-w-md w-full rounded-3xl p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                <h3 class="text-sm font-bold uppercase text-white" id="eventsModalTitle">Add Event</h3>
+                <button onclick="toggleModalVisibility('eventsModal', false)" class="text-slate-400 hover:text-white p-1"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <form id="eventsForm" onsubmit="submitEventRecord(event)" class="space-y-3.5 text-xs text-slate-200">
+                <input type="hidden" id="editEventId">
+                <div>
+                    <label class="block font-bold mb-1 text-slate-400">Event Name</label>
+                    <input type="text" id="addEventName" required placeholder="e.g. Maha Aarti & Cultural Night" class="w-full bg-[#0b0f19] border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-amber-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold mb-1 text-slate-400">Date</label>
+                        <input type="date" id="addEventDate" required class="w-full bg-[#0b0f19] border border-slate-800 text-white rounded-xl px-3.5 py-2.5 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-1 text-slate-400">Session</label>
+                        <select id="addEventSession" required class="w-full bg-[#0b0f19] border border-slate-800 text-white rounded-xl px-3.5 py-2.5 focus:outline-none">
+                            <option value="Morning">Morning</option>
+                            <option value="Evening">Evening</option>
+                        </select>
+                    </div>
+                </div>
+                <label class="flex items-center gap-2 bg-[#0b0f19] border border-slate-800 rounded-xl p-3 cursor-pointer">
+                    <input type="checkbox" id="addEventNotifyCommittee" checked class="w-4 h-4 accent-amber-500 rounded">
+                    <span class="text-xs text-slate-300 font-bold">Broadcast WhatsApp Notification to Committee</span>
+                </label>
+                <button type="submit" id="eventSubmitBtn" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold py-3 rounded-xl uppercase tracking-wider gold-btn-glow">Save Event Record</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- APPLICATION LOGIC & REALTIME BROADCAST & SYNCMANAGER ENGINE -->
+    <script>
+        // ============================================================
+        // XSS ESCAPE UTILITY HELPER
+        // ============================================================
+        function escapeHTML(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        // ============================================================
+        // SUPABASE CONFIGURATION
+        // ============================================================
+        const SUPABASE_URL = 'https://kgqldnwjallmqpulsjjh.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_Z6t5FWE34BzCnoK9fVE8_A_vhY0AqRK';
+        let supabaseClient = null;
+
+        const V2_CLOUD_COLLECTION = 'v2_data';
+        const CLOUD_SYNC_KEYS = ['v2_config', 'v2_donations', 'v2_expenses', 'v2_members', 'v2_sponsors', 'v2_gallery', 'v2_logs', 'v2_notes', 'v2_procession', 'v2_permissionPdf', 'v2_prasadam', 'v2_events', 'v2_logo', 'v2_loginbg', 'v2_qr', 'v2_donationqr'];
+
+        const SEED_DATA = {
+            config: {
+                festivalName: 'Sri Gowri Putra Youth',
+                year: '2026',
+                eventDate: '2026-09-14',
+                receiptPrefix: 'SGPY2026-',
+                upi: 'sgpyouth@upi',
+                paymentQrUrl: '',
+                donationQrUrl: '',
+                mapEnabledForAdmin: true,
+                downloadEnabledForAdmin: true,
+                permissionPdfEnabledForAdmin: false,
+                registrationEnabled: true
+            },
+            admins: [
+                { username: '9876543210', mobile: '9876543210', name: 'Super Admin', isSuper: true, isPeople: false },
+                { username: '9123456789', mobile: '9123456789', name: 'Ramesh Kumar', isSuper: false, isPeople: false }
+            ],
+            donations: [
+                { id: 'SGPY2026-0001', donor: 'K. Srinivasa Rao', amount: 10016, mode: 'UPI', date: '2026-09-01', status: 'Complete', collector: 'Super Admin' },
+                { id: 'SGPY2026-0002', donor: 'M. Venkat Reddy', amount: 5016, mode: 'Cash', date: '2026-09-02', status: 'Complete', collector: 'Super Admin' },
+                { id: 'SGPY2026-0003', donor: 'P. Anand Kumar', amount: 2500, mode: 'UPI', date: '2026-09-03', status: 'Pending', collector: 'Super Admin' }
+            ],
+            expenses: [
+                { id: 'EXP-101', description: 'Ganesha Idol Sthapana & Tent Setup', amount: 12500, date: '2026-09-01', recordedBy: 'Super Admin' },
+                { id: 'EXP-102', description: 'Floral Decoration & Entrance Arch', amount: 6500, date: '2026-09-02', recordedBy: 'Super Admin' }
+            ],
+            members: [
+                { id: 'MEM-001', name: 'K. Srinivas', phone: '9876543210', role: 'President', avatar: '' },
+                { id: 'MEM-002', name: 'B. Rajesh', phone: '9123456789', role: 'Secretary', avatar: '' }
+            ],
+            sponsors: [
+                { id: 'SP-001', name: 'Sri Lakshmi Steels', contact: '9440123456', description: 'Main Arch & Laddu Sponsor' },
+                { id: 'SP-002', name: 'Venkateswara Traders', contact: '9848011223', description: 'Daily Evening Prasadam Partner' }
+            ],
+            prasadam: [
+                { id: 'PR-001', name: 'M. Ramesh', mobile: '9876543210', foodItem: 'Chakkera Pongali & Laddu', date: '2026-09-14', session: 'Morning', recordedBy: 'Super Admin' },
+                { id: 'PR-002', name: 'S. Nagesh', mobile: '9123456789', foodItem: 'Pulihora & Sundal', date: '2026-09-14', session: 'Evening', recordedBy: 'Super Admin' }
+            ],
+            events: [
+                { id: 'EV-001', name: 'Ganesh Sthapana & Prana Pratishtha', date: '2026-09-14', session: 'Morning', recordedBy: 'Super Admin' },
+                { id: 'EV-002', name: 'Maha Aarti & Cultural Night', date: '2026-09-14', session: 'Evening', recordedBy: 'Super Admin' }
+            ],
+            procession: {
+                startedAt: null,
+                completedAt: null,
+                liveLocation: null,
+                stops: [
+                    { id: 'STOP-01', name: 'Main Temple Pandal', lat: 17.385, lng: 78.4867, status: 'pending' },
+                    { id: 'STOP-02', name: 'Bazaar Street Cross', lat: 17.388, lng: 78.489, status: 'pending' },
+                    { id: 'STOP-03', name: 'Lake Immersion Point', lat: 17.392, lng: 78.495, status: 'pending' }
+                ]
+            },
+            logs: [
+                `[2026-09-03 23:30] [SYSTEM] System initialized with production-hardened SyncManager.`
+            ]
+        };
+
+        // ============================================================
+        // SAFE LOCAL STORAGE WRAPPER WITH BROADCAST SYNC
+        // ============================================================
+        const SYNC_CHANNEL_NAME = 'vc2026_instant_sync_channel';
+        let broadcastChannel = null;
+
+        try {
+            if ('BroadcastChannel' in window) {
+                broadcastChannel = new BroadcastChannel(SYNC_CHANNEL_NAME);
+                broadcastChannel.onmessage = function(event) {
+                    if (event && event.data && event.data.type === 'DATA_UPDATED') {
+                        handleIncomingBroadcast(event.data.key, event.data.value);
+                    }
+                };
+            }
+        } catch (e) {
+            console.warn('BroadcastChannel initialization fallback:', e);
+        }
+
+        window.addEventListener('storage', function(e) {
+            if (e.key && e.key.startsWith('v2_')) {
+                handleIncomingBroadcast(e.key, e.newValue);
+            }
+        });
+
+        function broadcastStateUpdate(key, value) {
+            if (broadcastChannel) {
+                try {
+                    broadcastChannel.postMessage({ type: 'DATA_UPDATED', key: key, value: value, timestamp: Date.now() });
+                } catch (e) {}
+            }
+        }
+
+        const safeStorage = {
+            getItem(key) {
+                try { return localStorage.getItem(key); } catch (e) { return null; }
+            },
+            setItem(key, value) {
+                try {
+                    localStorage.setItem(key, value);
+                    broadcastStateUpdate(key, value);
+                    SyncManager.queueMutation(key, value);
+                } catch (e) {
+                    console.warn('LocalStorage write failed:', e);
+                }
+            }
+        };
+
+        let appState = {
+            themeMode: safeStorage.getItem('v2_theme') || 'dark',
+            authenticatedUser: null,
+            authenticatedDisplayName: null,
+            isSuperUser: false,
+            isPeopleUser: false,
+            config: JSON.parse(safeStorage.getItem('v2_config')) || SEED_DATA.config,
+            admins: JSON.parse(safeStorage.getItem('v2_admins')) || SEED_DATA.admins,
+            donations: JSON.parse(safeStorage.getItem('v2_donations')) || SEED_DATA.donations,
+            expenses: JSON.parse(safeStorage.getItem('v2_expenses')) || SEED_DATA.expenses,
+            members: JSON.parse(safeStorage.getItem('v2_members')) || SEED_DATA.members,
+            sponsors: JSON.parse(safeStorage.getItem('v2_sponsors')) || SEED_DATA.sponsors,
+            prasadam: JSON.parse(safeStorage.getItem('v2_prasadam')) || SEED_DATA.prasadam,
+            events: JSON.parse(safeStorage.getItem('v2_events')) || SEED_DATA.events,
+            procession: JSON.parse(safeStorage.getItem('v2_procession')) || SEED_DATA.procession,
+            logs: JSON.parse(safeStorage.getItem('v2_logs')) || SEED_DATA.logs,
+            notes: safeStorage.getItem('v2_notes') || 'Welcome to Sri Gowri Putra Youth Vinayaka Chavithi Desk!',
+            gallery: JSON.parse(safeStorage.getItem('v2_gallery')) || [],
+            permissionPdf: null
+        };
+
+        function appendAuditLog(message) {
+            const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
+            const user = appState.authenticatedDisplayName || 'Guest';
+            const entry = `[${timestamp}] [${user}] ${message}`;
+            appState.logs.unshift(entry);
+            safeStorage.setItem('v2_logs', JSON.stringify(appState.logs));
+            const logBox = document.getElementById('terminalLogBox');
+            if (logBox) {
+                logBox.innerHTML = appState.logs.map(l => `<div>${escapeHTML(l)}</div>`).join('');
+            }
+        }
+
+        function handleIncomingBroadcast(key, rawValue) {
+            if (!key) return;
+            try {
+                const stateKey = key.replace('v2_', '');
+                let value = rawValue;
+                if (typeof rawValue === 'string' && (rawValue.startsWith('{') || rawValue.startsWith('['))) {
+                    try { value = JSON.parse(rawValue); } catch (e) {}
+                }
+                
+                if (stateKey in appState) {
+                    appState[stateKey] = value;
+                    syncDataMatrices();
+                }
+            } catch (err) {
+                console.warn('Failed applying broadcast update:', err);
+            }
+        }
+
+        // ============================================================
+        // SYNCMANAGER ARCHITECTURE ENGINE
+        // ============================================================
+        const SyncManager = (function() {
+            let isOnline = navigator.onLine;
+            let syncInProgress = false;
+            let realtimeChannel = null;
+            let pendingMutations = {};
+
+            function updateStatusUI(status, message) {
+                const dot = document.getElementById('syncStatusDot');
+                const text = document.getElementById('syncStatusText');
+                if (!dot || !text) return;
+
+                if (status === 'live') {
+                    dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse";
+                    text.textContent = message || "● Live Synced";
+                } else if (status === 'syncing') {
+                    dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping";
+                    text.textContent = message || "↻ Syncing Cloud...";
+                } else if (status === 'offline') {
+                    dot.className = "w-2.5 h-2.5 rounded-full bg-slate-400";
+                    text.textContent = message || "⚠ Offline Mode";
+                } else if (status === 'error') {
+                    dot.className = "w-2.5 h-2.5 rounded-full bg-rose-500";
+                    text.textContent = message || "⚠ Reconnecting...";
+                }
+            }
+
+            function init() {
+                try {
+                    if (window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_URL.startsWith('http')) {
+                        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                            auth: {
+                                persistSession: true,
+                                autoRefreshToken: true,
+                                detectSessionInUrl: false,
+                                storageKey: 'sgpy-auth-session'
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.warn('Supabase initialization warning:', e);
+                }
+
+                window.addEventListener('online', () => { isOnline = true; reconnect(); });
+                window.addEventListener('offline', () => { isOnline = false; updateStatusUI('offline'); });
+                
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible' && isOnline) reconnect();
+                });
+            }
+
+            async function restoreSession() {
+                if (!supabaseClient) return false;
+                try {
+                    const { data } = await supabaseClient.auth.getSession();
+                    if (!data || !data.session) return false;
+
+                    const user = data.session.user;
+                    let mobile = user.email ? user.email.split('@')[0] : '';
+                    
+                    if (mobile && /^[0-9]{10}$/.test(mobile)) {
+                        const { data: profile } = await supabaseClient.rpc('get_my_profile_by_mobile', { p_mobile: mobile });
+                        if (profile && profile.approved) {
+                            appState.authenticatedUser = profile.mobile;
+                            appState.authenticatedDisplayName = profile.name || profile.mobile;
+                            appState.isSuperUser = profile.role === 'super';
+                            appState.isPeopleUser = profile.role === 'people';
+                            return true;
+                        }
+                    }
+                    return false;
+                } catch (e) {
+                    console.warn('Session restore error:', e);
+                    return false;
+                }
+            }
+
+            async function syncAll(force = false) {
+                if (!supabaseClient || !isOnline || syncInProgress) return;
+                syncInProgress = true;
+                updateStatusUI('syncing');
+
+                try {
+                    const { data, error } = await supabaseClient.from(V2_CLOUD_COLLECTION).select('key, value').in('key', CLOUD_SYNC_KEYS);
+                    if (!error && data) {
+                        data.forEach(row => {
+                            if (row.key && row.value !== undefined) {
+                                handleIncomingBroadcast(row.key, row.value);
+                            }
+                        });
+                        updateStatusUI('live');
+                    } else {
+                        updateStatusUI('error', error ? error.message : 'Sync failed');
+                    }
+                } catch (err) {
+                    updateStatusUI('offline', 'Offline Cached');
+                } finally {
+                    syncInProgress = false;
+                }
+            }
+
+            function queueMutation(key, value) {
+                pendingMutations[key] = { value, timestamp: Date.now() };
+                debounceFlushMutations();
+            }
+
+            let debounceTimer = null;
+            function debounceFlushMutations() {
+                if (debounceTimer) clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(flushMutations, 800);
+            }
+
+            async function flushMutations() {
+                if (!supabaseClient || !isOnline) return;
+                const keysToFlush = Object.keys(pendingMutations);
+                if (!keysToFlush.length) return;
+
+                const rows = keysToFlush.map(key => ({
+                    key,
+                    value: pendingMutations[key].value,
+                    updated_at: new Date().toISOString()
+                }));
+
+                try {
+                    const { error } = await supabaseClient.from(V2_CLOUD_COLLECTION).upsert(rows, { onConflict: 'key' });
+                    if (!error) {
+                        keysToFlush.forEach(k => delete pendingMutations[k]);
+                        updateStatusUI('live');
+                    }
+                } catch (e) {
+                    console.warn('Flush mutations failed:', e);
+                }
+            }
+
+            function subscribeRealtime() {
+                if (!supabaseClient || realtimeChannel) return;
+                try {
+                    realtimeChannel = supabaseClient.channel('v2-data-changes')
+                        .on('postgres_changes', { event: '*', schema: 'public', table: V2_CLOUD_COLLECTION }, payload => {
+                            const row = payload.new || {};
+                            if (row.key && row.value !== undefined) {
+                                handleIncomingBroadcast(row.key, row.value);
+                            }
+                        }).subscribe();
+                } catch (e) {
+                    console.warn('Realtime subscription error:', e);
+                }
+            }
+
+            function reconnect() {
+                updateStatusUI('syncing', 'Reconnecting...');
+                syncAll(true);
+                subscribeRealtime();
+            }
+
+            return {
+                init,
+                restoreSession,
+                syncAll,
+                queueMutation,
+                subscribeRealtime,
+                reconnect,
+                updateStatusUI
+            };
+        })();
+
+        // ============================================================
+        // AUTHENTICATION & LOGIN LIFECYCLE
+        // ============================================================
+        function authEmailForMobile(mobile) { return mobile + '@vc2026.app'; }
+
+        async function executeAuthSession(e) {
+            e.preventDefault();
+            const mobile = document.getElementById('loginUser').value.trim();
+            const pass = document.getElementById('loginPass').value;
+            const btn = document.getElementById('loginSubmitBtn');
+            
+            if (!/^[0-9]{10}$/.test(mobile)) { alert('Enter a valid 10-digit mobile number.'); return; }
+            if (btn) btn.disabled = true;
+
+            try {
+                if (supabaseClient) {
+                    const { data: authData, error: authErr } = await supabaseClient.auth.signInWithPassword({
+                        email: authEmailForMobile(mobile),
+                        password: pass
+                    });
+
+                    if (authErr) throw authErr;
+
+                    const { data: profile, error: profErr } = await supabaseClient.rpc('get_my_profile_by_mobile', { p_mobile: mobile });
+                    if (profErr || !profile) throw new Error('Account profile not found or approval pending.');
+
+                    if (!profile.approved || profile.status !== 'approved') {
+                        await supabaseClient.auth.signOut();
+                        alert('Account is pending approval by Super Admin.');
+                        return;
+                    }
+
+                    appState.authenticatedUser = profile.mobile;
+                    appState.authenticatedDisplayName = profile.name || profile.mobile;
+                    appState.isSuperUser = profile.role === 'super';
+                    appState.isPeopleUser = profile.role === 'people';
+                } else {
+                    const found = appState.admins.find(a => a.mobile === mobile || a.username === mobile);
+                    if (found) {
+                        appState.authenticatedUser = found.mobile;
+                        appState.authenticatedDisplayName = found.name || found.mobile;
+                        appState.isSuperUser = !!found.isSuper;
+                        appState.isPeopleUser = !!found.isPeople;
+                    } else {
+                        throw new Error('Invalid mobile number or password.');
+                    }
+                }
+
+                appendAuditLog(`User logged in successfully (${mobile})`);
+                showAuthenticatedApp();
+                SyncManager.syncAll(true);
+                SyncManager.subscribeRealtime();
+                showDataNotification('user-check', 'Signed In', `Welcome, ${escapeHTML(appState.authenticatedDisplayName)}!`, 'border-emerald-400');
+            } catch (err) {
+                alert(err.message || 'Login failed.');
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        function showAuthenticatedApp() {
+            document.getElementById('authPortal').classList.add('hidden');
+            document.getElementById('appContainer').classList.remove('hidden');
+            document.getElementById('sidebarUserName').innerText = appState.authenticatedDisplayName;
+            document.getElementById('sidebarUserRoleBadge').innerText = appState.isSuperUser ? 'Super Admin' : (appState.isPeopleUser ? 'Devotee' : 'Admin');
+            
+            applyAppProfileAndLogo();
+            applyAdminAccessControls();
+            switchWorkspaceView('dashboard');
+            syncDataMatrices();
+        }
+
+        async function registerNewAccount(e) {
+            e.preventDefault();
+            const name = document.getElementById('regName').value.trim();
+            const mobile = document.getElementById('regMobile').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const requestedRole = document.getElementById('regRole').value;
+            const btn = document.getElementById('regSubmitBtn');
+
+            if (!/^[0-9]{10}$/.test(mobile)) { alert('Enter a valid 10-digit mobile number.'); return; }
+            if (password.length < 6) { alert('Password must be at least 6 characters.'); return; }
+            if (btn) btn.disabled = true;
+
+            try {
+                if (!supabaseClient) throw new Error('Supabase client not initialized.');
+                const authEmail = authEmailForMobile(mobile);
+                const { data: signUpData, error: signUpErr } = await supabaseClient.auth.signUp({ email: authEmail, password });
+                if (signUpErr) throw signUpErr;
+
+                const { data: profile, error: profErr } = await supabaseClient.rpc('register_my_profile', {
+                    p_name: name,
+                    p_mobile: mobile,
+                    p_requested_role: requestedRole
+                });
+                if (profErr) throw profErr;
+
+                await supabaseClient.auth.signOut();
+                closeRegistrationModal();
+                e.target.reset();
+
+                if (profile && profile.status === 'approved') {
+                    alert('Initial Super Admin account registered successfully! You may now sign in.');
+                } else {
+                    alert('Registration submitted! Your request is pending approval by Super Admin.');
+                }
+            } catch (err) {
+                alert(err.message || 'Registration failed.');
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        function openRegistrationModal() {
+            document.getElementById('registrationModal').classList.remove('hidden');
+            document.getElementById('registrationModal').classList.add('flex');
+        }
+
+        function closeRegistrationModal() {
+            document.getElementById('registrationModal').classList.add('hidden');
+            document.getElementById('registrationModal').classList.remove('flex');
+        }
+
+        async function confirmLogout(skipConfirm = false) {
+            if (!skipConfirm && !confirm('Are you sure you want to sign out?')) return;
+            if (supabaseClient) {
+                try { await supabaseClient.auth.signOut(); } catch (e) {}
+            }
+            appendAuditLog('User logged out');
+            appState.authenticatedUser = null;
+            appState.authenticatedDisplayName = null;
+            document.getElementById('authPortal').classList.remove('hidden');
+            document.getElementById('appContainer').classList.add('hidden');
+        }
+
+        // ============================================================
+        // WORKSPACE NAVIGATION & TAB SWITCHING (<100ms)
+        // ============================================================
+        function switchWorkspaceView(targetId) {
+            const views = ['dashboard', 'donations', 'expenses', 'committee', 'sponsors', 'prasadam', 'gallery', 'events', 'procession', 'manageAdmins', 'auditLogs', 'notes', 'coreSettings'];
+            views.forEach(v => {
+                const pane = document.getElementById(`pane-${v}`);
+                const menu = document.getElementById(`menu-${v}`);
+                if (pane) pane.classList.add('hidden');
+                if (menu) {
+                    menu.className = "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800/50 transition-all";
+                }
+            });
+
+            const targetPane = document.getElementById(`pane-${targetId}`);
+            const targetMenu = document.getElementById(`menu-${targetId}`);
+            if (targetPane) targetPane.classList.remove('hidden');
+            if (targetMenu) {
+                targetMenu.className = "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 transition-all";
+            }
+
+            const pageTitleMap = {
+                dashboard: 'Analytical Dashboard',
+                donations: 'Donation Registers & Receipts',
+                expenses: 'Expense Tracker & Debits',
+                committee: 'Committee Members Directory',
+                sponsors: 'Brand Sponsors & Patrons',
+                prasadam: 'Prasadam Distribution Schedule',
+                gallery: 'Media Archive Gallery',
+                events: 'Festival Event Timetable',
+                procession: 'Nimarjan Procession Live Map',
+                manageAdmins: 'User Account Approvals',
+                auditLogs: 'Audit Action Timeline',
+                notes: 'Super Admin Notes & PDF Documents',
+                coreSettings: 'System Settings & Export'
+            };
+            document.getElementById('pageTitle').innerText = pageTitleMap[targetId] || 'Management Desk';
+
+            if (targetId === 'procession') {
+                setTimeout(initProcessionMap, 50);
+            } else if (targetId === 'gallery') {
+                renderGalleryGrid();
+            } else if (targetId === 'manageAdmins') {
+                loadPendingRegistrations();
+            }
+
+            toggleMobileSidebar(false);
+            lucide.createIcons();
+        }
+
+        function toggleMobileSidebar(show) {
+            const sidebar = document.getElementById('sidebarNav');
+            const backdrop = document.getElementById('sidebarBackdrop');
+            if (show) {
+                sidebar.classList.remove('-translate-x-full');
+                backdrop.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                backdrop.classList.add('hidden');
+            }
+        }
+
+        function applyAdminAccessControls() {
+            const superMenu = document.getElementById('superAdminMenuOptions');
+            if (superMenu) superMenu.classList.toggle('hidden', !appState.isSuperUser);
+            
+            const adminSection = document.getElementById('dashboardAdminSection');
+            const peopleSection = document.getElementById('dashboardPeopleSection');
+            if (adminSection) adminSection.classList.toggle('hidden', !!appState.isPeopleUser);
+            if (peopleSection) peopleSection.classList.toggle('hidden', !appState.isPeopleUser);
+
+            const galleryUpload = document.getElementById('galleryUploadPanel');
+            if (galleryUpload) galleryUpload.classList.toggle('hidden', !appState.isSuperUser);
+            
+            const addEventBtn = document.getElementById('addEventBtn');
+            if (addEventBtn) addEventBtn.classList.toggle('hidden', !appState.isSuperUser);
+        }
+
+        // ============================================================
+        // DASHBOARD CALCULATIONS & RE-RENDERING
+        // ============================================================
+        function syncDataMatrices() {
+            let collectionSum = 0; let pendingSum = 0; let todaySum = 0;
+            let collectorBreakdown = {};
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            appState.donations.forEach(d => {
+                const amt = Number(d.amount) || 0;
+                if (d.status === 'Complete') {
+                    collectionSum += amt;
+                    if (d.date === todayStr) todaySum += amt;
+                    collectorBreakdown[d.collector || 'Admin'] = (collectorBreakdown[d.collector || 'Admin'] || 0) + amt;
+                } else {
+                    pendingSum += amt;
+                }
+            });
+
+            const expenseSum = appState.expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+
+            document.getElementById('cardCollected').innerText = `₹${collectionSum.toLocaleString('en-IN')}`;
+            document.getElementById('cardExpenses').innerText = `₹${expenseSum.toLocaleString('en-IN')}`;
+            document.getElementById('cardBalance').innerText = `₹${(collectionSum - expenseSum).toLocaleString('en-IN')}`;
+            document.getElementById('cardPending').innerText = `₹${pendingSum.toLocaleString('en-IN')}`;
+            document.getElementById('cardTodayCollection').innerText = `₹${todaySum.toLocaleString('en-IN')}`;
+
+            document.getElementById('lblCountMembers').innerText = appState.members.length;
+            document.getElementById('lblCountSponsors').innerText = appState.sponsors.length;
+            document.getElementById('lblCountAdmins').innerText = appState.admins.length;
+            document.getElementById('lblCountGallery').innerText = appState.gallery.length;
+
+            document.getElementById('dashboardBreakdownRows').innerHTML = Object.keys(collectorBreakdown).map(k => `
+                <tr class="hover:bg-slate-800/40">
+                    <td class="p-3.5 font-bold text-slate-200">${escapeHTML(k)}</td>
+                    <td class="p-3.5 text-right font-black text-emerald-400 font-mono">₹${collectorBreakdown[k].toLocaleString('en-IN')}</td>
+                </tr>
+            `).join('');
+
+            syncDonationsTable();
+            syncExpensesTable();
+            renderCommitteeGrid();
+            renderSponsorsTable();
+            syncPrasadamTable();
+            syncEventsTable();
+        }
+
+        // ============================================================
+        // DONATIONS MODULE
+        // ============================================================
+        function syncDonationsTable() {
+            const nameQ = (document.getElementById('filterDevoteeName').value || '').toLowerCase().trim();
+            const modeQ = document.getElementById('filterPaymentMode').value;
+            const statusQ = document.getElementById('filterStatus').value;
+            const dateQ = document.getElementById('filterDateValue').value;
+
+            const filtered = appState.donations.filter(d => {
+                const matchesName = (d.donor || '').toLowerCase().includes(nameQ) || (d.id || '').toLowerCase().includes(nameQ);
+                const matchesMode = (modeQ === 'ALL' || d.mode === modeQ);
+                const matchesStatus = (statusQ === 'ALL' || d.status === statusQ);
+                const matchesDate = (!dateQ || d.date === dateQ);
+                return matchesName && matchesMode && matchesStatus && matchesDate;
+            });
+
+            document.getElementById('tableDonationsBody').innerHTML = filtered.length === 0 ?
+                `<tr><td colspan="7" class="p-6 text-center text-slate-500 italic">No matching donation entries found.</td></tr>` :
+                filtered.map(d => `
+                    <tr class="hover:bg-slate-800/40 transition-colors">
+                        <td class="p-3.5 font-mono font-bold text-amber-400">${escapeHTML(d.id)}</td>
+                        <td class="p-3.5 font-bold text-white">${escapeHTML(d.donor)}</td>
+                        <td class="p-3.5 font-mono font-black text-emerald-400">₹${Number(d.amount).toLocaleString('en-IN')}</td>
+                        <td class="p-3.5"><span class="px-2 py-0.5 rounded-lg text-[10px] font-bold ${d.mode === 'UPI' ? 'bg-indigo-500/20 text-indigo-300' : 'bg-amber-500/20 text-amber-300'}">${escapeHTML(d.mode)}</span></td>
+                        <td class="p-3.5 font-mono text-slate-400 text-[11px]">${escapeHTML(d.date)}</td>
+                        <td class="p-3.5 text-slate-400">${escapeHTML(d.collector || 'Admin')}</td>
+                        <td class="p-3.5 text-right">
+                            <div class="flex gap-1.5 justify-end">
+                                ${d.status === 'Pending' ? `<button onclick="settlePledge('${escapeHTML(d.id)}')" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold px-2 py-1 rounded-lg text-[10px] uppercase">Settle</button>` : ''}
+                                <button onclick="openReceiptModal('${escapeHTML(d.id)}')" title="Print or Share Receipt" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2 py-1 rounded-lg text-[10px] font-bold">Print/Share</button>
+                                <button onclick="openEditDonationModal('${escapeHTML(d.id)}')" title="Edit Record" class="bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1"><i data-lucide="edit-3" class="w-3 h-3"></i> Edit</button>
+                                <button onclick="deleteDonationRecord('${escapeHTML(d.id)}')" title="Delete Record" class="bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 border border-rose-500/30 px-2 py-1 rounded-lg text-[10px] font-bold p-1"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            lucide.createIcons();
+        }
+
+        function openAddDonationModal() {
+            document.getElementById('donationForm').reset();
+            document.getElementById('editDonationId').value = '';
+            document.getElementById('donationModalTitle').innerText = 'Register Devotee Donation';
+            toggleModalVisibility('donationModal', true);
+        }
+
+        function openEditDonationModal(id) {
+            const item = appState.donations.find(d => d.id === id);
+            if (!item) return;
+
+            document.getElementById('editDonationId').value = item.id;
+            document.getElementById('addDonName').value = item.donor || '';
+            document.getElementById('addDonAmount').value = item.amount || '';
+            document.getElementById('addDonMode').value = item.mode || 'Cash';
+            document.getElementById('addDonStatus').value = item.status || 'Complete';
+            document.getElementById('donationModalTitle').innerText = `Edit Donation (${item.id})`;
+            toggleModalVisibility('donationModal', true);
+        }
+
+        function submitDonationRecord(e) {
+            e.preventDefault();
+            const editId = document.getElementById('editDonationId').value;
+            const donor = document.getElementById('addDonName').value.trim();
+            const amount = parseFloat(document.getElementById('addDonAmount').value);
+            const mode = document.getElementById('addDonMode').value;
+            const status = document.getElementById('addDonStatus').value;
+            const todayStr = new Date().toISOString().split('T')[0];
+            const btn = document.getElementById('donationSubmitBtn');
+
+            if (!donor || isNaN(amount) || amount <= 0) { alert('Please enter valid donor name and amount.'); return; }
+            if (btn) btn.disabled = true;
+
+            try {
+                if (editId) {
+                    appState.donations = appState.donations.map(d => {
+                        if (d.id === editId) {
+                            return { ...d, donor, amount, mode, status };
+                        }
+                        return d;
+                    });
+                    safeStorage.setItem('v2_donations', JSON.stringify(appState.donations));
+                    appendAuditLog(`Updated donation record ${editId} (₹${amount} - ${donor})`);
+                    showDataNotification('edit-3', 'Donation Updated', `Receipt ${editId} updated successfully.`, 'border-indigo-400');
+                } else {
+                    const prefix = appState.config.receiptPrefix || 'SGPY2026-';
+                    const uniqueSalt = Date.now().toString().slice(-4) + Math.floor(100 + Math.random() * 900);
+                    const receiptId = `${prefix}${uniqueSalt}`;
+
+                    appState.donations.unshift({
+                        id: receiptId,
+                        donor: donor,
+                        amount: amount,
+                        mode: mode,
+                        status: status,
+                        date: todayStr,
+                        collector: appState.authenticatedUser || 'Admin'
+                    });
+
+                    safeStorage.setItem('v2_donations', JSON.stringify(appState.donations));
+                    appendAuditLog(`Issued donation receipt ${receiptId} for ₹${amount} (${donor})`);
+                    showDataNotification('hand-coins', 'Donation Saved', `Receipt ${receiptId} issued for ₹${amount}`, 'border-emerald-400');
+                }
+
+                toggleModalVisibility('donationModal', false);
+                syncDataMatrices();
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        function deleteDonationRecord(id) {
+            if (!confirm(`Are you sure you want to delete donation receipt ${id}?`)) return;
+            appState.donations = appState.donations.filter(d => d.id !== id);
+            safeStorage.setItem('v2_donations', JSON.stringify(appState.donations));
+            appendAuditLog(`Deleted donation record (${id})`);
+            syncDataMatrices();
+            showDataNotification('trash-2', 'Donation Deleted', `Deleted record ${id}`, 'border-rose-400');
+        }
+
+
+        function settlePledge(id) {
+            appState.donations = appState.donations.map(d => {
+                if (d.id === id) d.status = 'Complete';
+                return d;
+            });
+            safeStorage.setItem('v2_donations', JSON.stringify(appState.donations));
+            appendAuditLog(`Settled donation pledge (${id})`);
+            syncDataMatrices();
+            showDataNotification('check-circle', 'Pledge Settled', `Marked ${id} as Complete`, 'border-emerald-400');
+        }
+
+        let activeReceipt = null;
+        function openReceiptModal(id) {
+            activeReceipt = appState.donations.find(d => d.id === id);
+            if (!activeReceipt) return;
+
+            document.getElementById('printReceiptContent').innerHTML = `
+                <div><strong>Receipt Ref:</strong> ${escapeHTML(activeReceipt.id)}</div>
+                <div><strong>Devotee:</strong> ${escapeHTML(activeReceipt.donor)}</div>
+                <div><strong>Amount:</strong> ₹${Number(activeReceipt.amount).toLocaleString('en-IN')}</div>
+                <div><strong>Payment Mode:</strong> ${escapeHTML(activeReceipt.mode)}</div>
+                <div><strong>Date:</strong> ${escapeHTML(activeReceipt.date)}</div>
+                <div><strong>Status:</strong> ${escapeHTML(activeReceipt.status).toUpperCase()}</div>
+                <div><strong>Collector:</strong> ${escapeHTML(activeReceipt.collector || 'Admin')}</div>
+            `;
+            toggleModalVisibility('printReceiptModal', true);
+            lucide.createIcons();
+        }
+
+        function triggerReceiptPrint() {
+            window.print();
+        }
+
+        async function shareReceiptToWhatsApp() {
+            if (!activeReceipt) return;
+            const text = `*${appState.config.festivalName}*\nReceipt: ${activeReceipt.id}\nDevotee: ${activeReceipt.donor}\nAmount: ₹${activeReceipt.amount}\nMode: ${activeReceipt.mode}\nStatus: ${activeReceipt.status}`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+        }
+
+        // ============================================================
+        // EXPENSES MODULE
+        // ============================================================
+        function syncExpensesTable() {
+            const filtered = appState.expenses;
+            document.getElementById('tableExpensesBody').innerHTML = filtered.length === 0 ?
+                `<tr><td colspan="5" class="p-6 text-center text-slate-500 italic">No expenses logged yet.</td></tr>` :
+                filtered.map(e => `
+                    <tr class="hover:bg-slate-800/40 transition-colors">
+                        <td class="p-3.5 font-bold text-white">${escapeHTML(e.description)}</td>
+                        <td class="p-3.5 font-mono font-black text-rose-400">₹${Number(e.amount).toLocaleString('en-IN')}</td>
+                        <td class="p-3.5 font-mono text-slate-400 text-[11px]">${escapeHTML(e.date)}</td>
+                        <td class="p-3.5 text-slate-400">${escapeHTML(e.recordedBy || 'Admin')}</td>
+                        <td class="p-3.5 text-right">
+                            <button onclick="deleteExpense('${escapeHTML(e.id)}')" class="text-rose-400 hover:text-rose-300 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </td>
+                    </tr>
+                `).join('');
+            lucide.createIcons();
+        }
+
+        function openAddExpenseModal() {
+            document.getElementById('expenseForm').reset();
+            document.getElementById('addExpDate').value = new Date().toISOString().split('T')[0];
+            toggleModalVisibility('expenseModal', true);
+        }
+
+        function submitExpenseRecord(e) {
+            e.preventDefault();
+            const desc = document.getElementById('addExpDesc').value.trim();
+            const amount = parseFloat(document.getElementById('addExpAmount').value);
+            const date = document.getElementById('addExpDate').value;
+            const btn = document.getElementById('expenseSubmitBtn');
+
+            if (!desc || isNaN(amount) || amount <= 0) { alert('Please enter valid description and amount.'); return; }
+            if (btn) btn.disabled = true;
+
+            try {
+                const expId = 'EXP-' + Date.now().toString().slice(-4) + Math.floor(10 + Math.random()*90);
+                appState.expenses.unshift({
+                    id: expId,
+                    description: desc,
+                    amount: amount,
+                    date: date,
+                    recordedBy: appState.authenticatedUser || 'Admin'
+                });
+
+                safeStorage.setItem('v2_expenses', JSON.stringify(appState.expenses));
+                appendAuditLog(`Logged expense debit ₹${amount} (${desc})`);
+                toggleModalVisibility('expenseModal', false);
+                syncDataMatrices();
+                showDataNotification('receipt', 'Expense Logged', `Recorded ₹${amount} for ${escapeHTML(desc)}`, 'border-rose-400');
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        function deleteExpense(id) {
+            if (!confirm('Are you sure you want to delete this expense record?')) return;
+            appState.expenses = appState.expenses.filter(e => e.id !== id);
+            safeStorage.setItem('v2_expenses', JSON.stringify(appState.expenses));
+            appendAuditLog(`Deleted expense record (${id})`);
+            syncDataMatrices();
+        }
+
+        // ============================================================
+        // COMMITTEE & SPONSORS MODULE
+        // ============================================================
+        function renderCommitteeGrid() {
+            const grid = document.getElementById('committeeCardsLayout');
+            grid.innerHTML = appState.members.map(m => `
+                <div class="glass-panel p-4 rounded-3xl border border-slate-800 flex flex-col items-center text-center space-y-3 relative group">
+                    <div class="w-16 h-16 rounded-2xl bg-slate-800 flex items-center justify-center font-bold text-amber-400 text-xl border border-slate-700 overflow-hidden">
+                        ${m.avatar ? `<img src="${m.avatar}" class="w-full h-full object-cover">` : escapeHTML(m.name.slice(0, 2).toUpperCase())}
+                    </div>
+                    <div>
+                        <div class="font-bold text-white text-sm truncate">${escapeHTML(m.name)}</div>
+                        <div class="text-[11px] text-amber-400 font-extrabold mt-0.5">${escapeHTML(m.role || 'Member')}</div>
+                        <div class="text-[11px] text-slate-400 font-mono mt-1">${escapeHTML(m.phone)}</div>
+                    </div>
+                    <div class="flex gap-2 pt-1">
+                        <a href="tel:${escapeHTML(m.phone)}" class="p-2 bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 rounded-xl border border-indigo-500/30"><i data-lucide="phone" class="w-3.5 h-3.5"></i></a>
+                        <a href="https://wa.me/91${escapeHTML(m.phone).replace(/\D/g,'')}" target="_blank" class="p-2 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 rounded-xl border border-emerald-500/30"><i data-lucide="message-square" class="w-3.5 h-3.5"></i></a>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function openAddMemberModal() {
+            document.getElementById('memberForm').reset();
+            document.getElementById('memberAvatarPreview').src = '';
+            document.getElementById('memberAvatarPreview').classList.add('hidden');
+            toggleModalVisibility('committeeModal', true);
+        }
+
+        function previewMemberAvatar(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (!file.type.startsWith('image/')) { alert('Please select a valid image file (JPG, PNG, WebP).'); return; }
+            compressImage(file, 300, (dataUrl) => {
+                const img = document.getElementById('memberAvatarPreview');
+                img.src = dataUrl;
+                img.classList.remove('hidden');
+            });
+        }
+
+        function submitMemberRecord(e) {
+            e.preventDefault();
+            const name = document.getElementById('addMemName').value.trim();
+            const phone = document.getElementById('addMemPhone').value.trim();
+            const role = document.getElementById('addMemRole').value;
+            const avatar = document.getElementById('memberAvatarPreview').src || '';
+            const btn = document.getElementById('memberSubmitBtn');
+
+            if (!name || !phone) { alert('Please fill member name and mobile number.'); return; }
+            if (btn) btn.disabled = true;
+
+            try {
+                appState.members.push({ id: 'MEM-' + Date.now().toString().slice(-4), name, phone, role, avatar });
+                safeStorage.setItem('v2_members', JSON.stringify(appState.members));
+                appendAuditLog(`Added committee member (${name} - ${role})`);
+                toggleModalVisibility('committeeModal', false);
+                syncDataMatrices();
+                showDataNotification('users', 'Member Added', `Added ${escapeHTML(name)} as ${escapeHTML(role)}`, 'border-indigo-400');
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        function renderSponsorsTable() {
+            document.getElementById('tableSponsorsBody').innerHTML = appState.sponsors.map(s => `
+                <tr class="hover:bg-slate-800/40">
+                    <td class="p-3.5 font-bold text-amber-400">${escapeHTML(s.name)}</td>
+                    <td class="p-3.5 font-mono text-slate-400">${escapeHTML(s.contact)}</td>
+                    <td class="p-3.5 text-slate-200">${escapeHTML(s.description)}</td>
+                    <td class="p-3.5 text-right"><button onclick="deleteSponsor('${escapeHTML(s.id)}')" class="text-rose-400 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td>
+                </tr>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function submitSponsorRecord(e) {
+            e.preventDefault();
+            const name = document.getElementById('addSponName').value.trim();
+            const desc = document.getElementById('addSponDesc').value.trim();
+            const contact = document.getElementById('addSponContact').value.trim();
+            const btn = document.getElementById('sponsorSubmitBtn');
+
+            if (!name || !desc) { alert('Please enter sponsor name and description.'); return; }
+            if (btn) btn.disabled = true;
+
+            try {
+                appState.sponsors.push({ id: 'SP-' + Date.now().toString().slice(-3), name, description: desc, contact });
+                safeStorage.setItem('v2_sponsors', JSON.stringify(appState.sponsors));
+                appendAuditLog(`Added brand sponsor (${name})`);
+                toggleModalVisibility('sponsorModal', false);
+                syncDataMatrices();
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        function deleteSponsor(id) {
+            if (!confirm('Remove this sponsor entry?')) return;
+            appState.sponsors = appState.sponsors.filter(s => s.id !== id);
+            safeStorage.setItem('v2_sponsors', JSON.stringify(appState.sponsors));
+            appendAuditLog(`Removed sponsor entry (${id})`);
+            syncDataMatrices();
+        }
+
+        // ============================================================
+        // OPTIMIZED GALLERY BATCH UPLOADER & LAZY RENDERING
+        // ============================================================
+        function compressImage(file, maxDimension, callback) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    let w = img.width, h = img.height;
+                    if (w > maxDimension || h > maxDimension) {
+                        if (w > h) { h = Math.round(h * (maxDimension / w)); w = maxDimension; }
+                        else { w = Math.round(w * (maxDimension / h)); h = maxDimension; }
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w; canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    callback(canvas.toDataURL('image/jpeg', 0.82));
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function uploadGalleryImageFile(e) {
+            const files = Array.from(e.target.files || []);
+            if (!files.length) return;
+
+            const validImages = files.filter(f => f.type.startsWith('image/'));
+            if (validImages.length !== files.length) {
+                alert('Some selected files were skipped because they are not valid images.');
+            }
+            if (!validImages.length) return;
+
+            const status = document.getElementById('galleryUploadStatus');
+            if (status) { status.classList.remove('hidden'); status.innerText = `Uploading 0 of ${validImages.length}...`; }
+
+            const MAX_CONCURRENT = 3;
+            let completed = 0;
+
+            for (let i = 0; i < validImages.length; i += MAX_CONCURRENT) {
+                const batch = validImages.slice(i, i + MAX_CONCURRENT);
+                await Promise.all(batch.map(file => new Promise(resolve => {
+                    compressImage(file, 1200, (dataUrl) => {
+                        const photoId = 'IMG-' + Date.now().toString().slice(-6) + '-' + Math.floor(100 + Math.random()*900);
+                        appState.gallery.unshift({ id: photoId, url: dataUrl, name: file.name, uploadedAt: new Date().toISOString() });
+                        completed++;
+                        if (status) status.innerText = `Uploading ${completed} of ${validImages.length}...`;
+                        resolve();
+                    });
+                })));
+            }
+
+            safeStorage.setItem('v2_gallery', JSON.stringify(appState.gallery));
+            appendAuditLog(`Uploaded ${validImages.length} photo(s) to media gallery`);
+            if (status) { status.innerText = `✓ Uploaded ${validImages.length} photo(s) successfully!`; setTimeout(() => status.classList.add('hidden'), 3000); }
+            renderGalleryGrid();
+            syncDataMatrices();
+        }
+
+        function renderGalleryGrid() {
+            const box = document.getElementById('galleryContainerLayout');
+            if (!box) return;
+            box.innerHTML = appState.gallery.length === 0 ?
+                `<div class="col-span-full text-center text-slate-500 italic py-8">No photos in media gallery yet.</div>` :
+                appState.gallery.map((img, idx) => `
+                    <div class="glass-panel rounded-2xl overflow-hidden border border-slate-800 relative group h-40">
+                        <img src="${img.url}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 cursor-pointer" onclick="openPhotoViewer('${img.url}')">
+                        <button onclick="deleteGalleryPhoto('${escapeHTML(img.id)}')" class="absolute top-2 right-2 p-1.5 bg-rose-600/80 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                `).join('');
+            lucide.createIcons();
+        }
+
+        function deleteGalleryPhoto(id) {
+            if (!confirm('Delete this photo from media gallery?')) return;
+            appState.gallery = appState.gallery.filter(g => g.id !== id);
+            safeStorage.setItem('v2_gallery', JSON.stringify(appState.gallery));
+            appendAuditLog(`Deleted gallery photo (${id})`);
+            renderGalleryGrid();
+            syncDataMatrices();
+        }
+
+        function openPhotoViewer(url) {
+            if (!url) return;
+            document.getElementById('photoViewImage').src = url;
+            toggleModalVisibility('photoViewModal', true);
+        }
+
+        // ============================================================
+        // PRASADAM & EVENTS MODULE
+        // ============================================================
+        function syncPrasadamTable() {
+            document.getElementById('tablePrasadamBody').innerHTML = appState.prasadam.map(p => `
+                <tr class="hover:bg-slate-800/40">
+                    <td class="p-3.5 font-bold text-white">${escapeHTML(p.name)}</td>
+                    <td class="p-3.5 font-mono text-slate-400">${escapeHTML(p.mobile)}</td>
+                    <td class="p-3.5 text-amber-300 font-medium">${escapeHTML(p.foodItem)}</td>
+                    <td class="p-3.5 font-mono text-slate-400 text-[11px]">${escapeHTML(p.date)}</td>
+                    <td class="p-3.5"><span class="px-2 py-0.5 rounded-lg text-[10px] font-bold ${p.session === 'Morning' ? 'bg-amber-500/20 text-amber-300' : 'bg-indigo-500/20 text-indigo-300'}">${escapeHTML(p.session)}</span></td>
+                    <td class="p-3.5 text-slate-400">${escapeHTML(p.recordedBy || 'Admin')}</td>
+                    <td class="p-3.5 text-right"><button onclick="deletePrasadam('${escapeHTML(p.id)}')" class="text-rose-400 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td>
+                </tr>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function openPrasadamAddModal() {
+            document.getElementById('prasadamForm').reset();
+            document.getElementById('addPrasDate').value = new Date().toISOString().split('T')[0];
+            toggleModalVisibility('prasadamModal', true);
+        }
+
+        function submitPrasadamRecord(e) {
+            e.preventDefault();
+            const name = document.getElementById('addPrasName').value.trim();
+            const mobile = document.getElementById('addPrasMobile').value.trim();
+            const food = document.getElementById('addPrasFoodItem').value.trim();
+            const date = document.getElementById('addPrasDate').value;
+            const session = document.getElementById('addPrasSession').value;
+            const btn = document.getElementById('prasadamSubmitBtn');
+
+            if (!name || !food) { alert('Please enter distributor name and food item.'); return; }
+            if (btn) btn.disabled = true;
+
+            try {
+                appState.prasadam.push({ id: 'PR-' + Date.now().toString().slice(-4), name, mobile, foodItem: food, date, session, recordedBy: appState.authenticatedUser });
+                safeStorage.setItem('v2_prasadam', JSON.stringify(appState.prasadam));
+                appendAuditLog(`Added prasadam entry (${name} - ${food})`);
+                toggleModalVisibility('prasadamModal', false);
+                syncDataMatrices();
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        function deletePrasadam(id) {
+            if (!confirm('Remove this prasadam entry?')) return;
+            appState.prasadam = appState.prasadam.filter(p => p.id !== id);
+            safeStorage.setItem('v2_prasadam', JSON.stringify(appState.prasadam));
+            appendAuditLog(`Removed prasadam entry (${id})`);
+            syncDataMatrices();
+        }
+
+        function syncEventsTable() {
+            document.getElementById('tableEventsBody').innerHTML = appState.events.map(ev => `
+                <tr class="hover:bg-slate-800/40">
+                    <td class="p-3.5 font-mono text-slate-400 text-[11px]">${escapeHTML(ev.date)}</td>
+                    <td class="p-3.5 font-bold text-white">${escapeHTML(ev.name)}</td>
+                    <td class="p-3.5"><span class="px-2 py-0.5 rounded-lg text-[10px] font-bold ${ev.session === 'Morning' ? 'bg-amber-500/20 text-amber-300' : 'bg-indigo-500/20 text-indigo-300'}">${escapeHTML(ev.session)}</span></td>
+                    <td class="p-3.5 text-right">
+                        <div class="flex gap-2 justify-end">
+                            <button onclick="notifyEventToCommittee('${escapeHTML(ev.id)}')" title="Broadcast Notification to Committee Members" class="bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-lg text-[10px] font-bold inline-flex items-center gap-1"><i data-lucide="bell" class="w-3 h-3"></i> Notify Committee</button>
+                            <button onclick="deleteEvent('${escapeHTML(ev.id)}')" title="Delete Event" class="text-rose-400 hover:text-rose-300 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function notifyEventToCommittee(id) {
+            const ev = appState.events.find(e => e.id === id);
+            if (!ev) return;
+
+            const festivalName = appState.config.festivalName || 'Sri Gowri Putra Youth';
+            const year = appState.config.year || '2026';
+            const msg = `*🚩 ${festivalName} (${year})*\n*OFFICIAL EVENT ANNOUNCEMENT*\n\n📅 *Event*: ${ev.name}\n📆 *Date*: ${ev.date}\n🌅 *Session*: ${ev.session}\n\nDear Committee Members & Devotees,\nYou are cordially invited to attend and coordinate the upcoming festival event. Please join us on time!\n\n— *${festivalName} Management Team*`;
+
+            window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+
+            appendAuditLog(`Broadcasted event notification to Committee Members (${ev.name})`);
+            showDataNotification('bell', 'Committee Notified', `Broadcasted notification for ${escapeHTML(ev.name)}`, 'border-emerald-400');
+        }
+
+        function openEventAddModal() {
+            document.getElementById('eventsForm').reset();
+            document.getElementById('addEventDate').value = new Date().toISOString().split('T')[0];
+            toggleModalVisibility('eventsModal', true);
+        }
+
+        function submitEventRecord(e) {
+            e.preventDefault();
+            const name = document.getElementById('addEventName').value.trim();
+            const date = document.getElementById('addEventDate').value;
+            const session = document.getElementById('addEventSession').value;
+            const notifyChecked = document.getElementById('addEventNotifyCommittee')?.checked;
+            const btn = document.getElementById('eventSubmitBtn');
+
+            if (!name) { alert('Please enter event name.'); return; }
+            if (btn) btn.disabled = true;
+
+            try {
+                const eventId = 'EV-' + Date.now().toString().slice(-4);
+                appState.events.push({ id: eventId, name, date, session, recordedBy: appState.authenticatedUser });
+                safeStorage.setItem('v2_events', JSON.stringify(appState.events));
+                appendAuditLog(`Added event (${name} on ${date})`);
+                toggleModalVisibility('eventsModal', false);
+                syncDataMatrices();
+
+                if (notifyChecked) {
+                    notifyEventToCommittee(eventId);
+                } else {
+                    showDataNotification('calendar-days', 'Event Scheduled', `Added ${escapeHTML(name)}`, 'border-amber-400');
+                }
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        function deleteEvent(id) {
+            if (!confirm('Delete this scheduled event?')) return;
+            appState.events = appState.events.filter(e => e.id !== id);
+            safeStorage.setItem('v2_events', JSON.stringify(appState.events));
+            appendAuditLog(`Deleted event (${id})`);
+            syncDataMatrices();
+        }
+
+        // ============================================================
+        // PROCESSION LEAFLET ROUTE MAP ENGINE
+        // ============================================================
+        let processionMap = null;
+        let mapMarkersGroup = null;
+
+        function initProcessionMap() {
+            if (processionMap || typeof L === 'undefined') return;
+            const mapEl = document.getElementById('processionMap');
+            if (!mapEl) return;
+
+            processionMap = L.map('processionMap').setView([17.385, 78.4867], 14);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap'
+            }).addTo(processionMap);
+
+            mapMarkersGroup = L.layerGroup().addTo(processionMap);
+            renderProcessionUI();
+        }
+
+        function renderProcessionUI() {
+            if (!processionMap || !mapMarkersGroup) return;
+            mapMarkersGroup.clearLayers();
+
+            const stops = appState.procession.stops || [];
+            const latlngs = [];
+
+            stops.forEach((s, i) => {
+                const marker = L.marker([s.lat, s.lng]).bindPopup(`<b>Stop ${i + 1}: ${escapeHTML(s.name)}</b>`);
+                marker.addTo(mapMarkersGroup);
+                latlngs.push([s.lat, s.lng]);
+            });
+
+            if (latlngs.length > 1) {
+                L.polyline(latlngs, { color: '#f59e0b', weight: 4, dashArray: '6 8' }).addTo(mapMarkersGroup);
+                processionMap.fitBounds(L.latLngBounds(latlngs), { padding: [30, 30] });
+            }
+
+            const banner = document.getElementById('processionLiveBanner');
+            if (banner) {
+                banner.className = "rounded-2xl p-4 border shadow-md font-bold text-xs flex items-center gap-3 bg-amber-500/10 border-amber-500/30 text-amber-400";
+                banner.innerHTML = `<i data-lucide="map-pin" class="w-5 h-5"></i> Procession Route configured with ${stops.length} street stops. Live tracking ready.`;
+            }
+
+            document.getElementById('processionStopsList').innerHTML = stops.map((s, i) => `
+                <div class="glass-panel p-3.5 rounded-2xl border border-slate-800 flex items-center justify-between text-xs">
+                    <div class="flex items-center gap-3">
+                        <span class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center text-[10px]">${i + 1}</span>
+                        <span class="font-bold text-white">${escapeHTML(s.name)}</span>
+                    </div>
+                    <button onclick="removeStop(${i})" class="text-rose-400 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function addProcessionStop(e) {
+            e.preventDefault();
+            const name = document.getElementById('newStopName').value.trim();
+            const btn = document.getElementById('stopSubmitBtn');
+            if (!name) return;
+            if (btn) btn.disabled = true;
+
+            try {
+                const nextLat = 17.385 + (appState.procession.stops.length * 0.003);
+                const nextLng = 78.4867 + (appState.procession.stops.length * 0.004);
+
+                appState.procession.stops.push({ id: 'STOP-' + Date.now().toString().slice(-4), name, lat: nextLat, lng: nextLng, status: 'pending' });
+                safeStorage.setItem('v2_procession', JSON.stringify(appState.procession));
+                appendAuditLog(`Added procession street stop (${name})`);
+                document.getElementById('newStopName').value = '';
+                renderProcessionUI();
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        function removeStop(idx) {
+            appState.procession.stops.splice(idx, 1);
+            safeStorage.setItem('v2_procession', JSON.stringify(appState.procession));
+            renderProcessionUI();
+        }
+
+        // ============================================================
+        // PENDING USER REGISTRATIONS APPROVALS
+        // ============================================================
+        async function loadPendingRegistrations() {
+            const listEl = document.getElementById('pendingRegistrationsList');
+            if (!listEl) return;
+
+            if (!supabaseClient) {
+                listEl.innerHTML = `<div class="text-xs text-slate-500 italic py-2">Offline mode — online Supabase authentication required to list pending user requests.</div>`;
+                return;
+            }
+
+            try {
+                const { data: pending, error } = await supabaseClient.from('user_profiles').select('*').eq('status', 'pending');
+                if (error) throw error;
+
+                if (!pending || !pending.length) {
+                    listEl.innerHTML = `<div class="text-xs text-slate-500 italic py-2">No pending registration requests.</div>`;
+                    return;
+                }
+
+                listEl.innerHTML = pending.map(p => `
+                    <div class="glass-panel p-3.5 rounded-2xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                        <div>
+                            <div class="font-bold text-white">${escapeHTML(p.name)} (${escapeHTML(p.mobile)})</div>
+                            <div class="text-[10px] text-amber-400 uppercase font-bold mt-0.5">Requested Role: ${escapeHTML(p.role)}</div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="approveUserRegistration('${escapeHTML(p.mobile)}', '${escapeHTML(p.role)}')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs">Approve</button>
+                            <button onclick="rejectUserRegistration('${escapeHTML(p.mobile)}')" class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs">Reject</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                listEl.innerHTML = `<div class="text-xs text-rose-400 py-2">Could not fetch pending registrations: ${escapeHTML(err.message)}</div>`;
+            }
+        }
+
+        async function approveUserRegistration(mobile, role) {
+            if (!supabaseClient) return;
+            try {
+                const sessionRes = await supabaseClient.auth.getSession();
+                const authUserId = sessionRes?.data?.session?.user?.id || null;
+
+                const updatePayload = {
+                    status: 'approved',
+                    approved: true,
+                    approved_at: new Date().toISOString()
+                };
+
+                if (authUserId) {
+                    updatePayload.approved_by = authUserId;
+                }
+
+                let { error } = await supabaseClient.from('user_profiles').update(updatePayload).eq('mobile', mobile);
+
+                if (error && (error.message || '').toLowerCase().includes('uuid')) {
+                    delete updatePayload.approved_by;
+                    const retryRes = await supabaseClient.from('user_profiles').update(updatePayload).eq('mobile', mobile);
+                    error = retryRes.error;
+                }
+
+                if (error) throw error;
+
+                appendAuditLog(`Approved registration for user (${mobile} as ${role})`);
+                showDataNotification('user-check', 'Approved', `Approved ${mobile} as ${role}`, 'border-emerald-400');
+                loadPendingRegistrations();
+            } catch (err) {
+                alert('Approval failed: ' + err.message);
+            }
+        }
+
+        async function rejectUserRegistration(mobile) {
+            if (!supabaseClient) return;
+            if (!confirm(`Reject account request for ${mobile}?`)) return;
+            try {
+                const { error } = await supabaseClient.from('user_profiles').update({ status: 'rejected', approved: false }).eq('mobile', mobile);
+                if (error) throw error;
+
+                appendAuditLog(`Rejected registration for user (${mobile})`);
+                loadPendingRegistrations();
+            } catch (err) {
+                alert('Rejection failed: ' + err.message);
+            }
+        }
+
+        // ============================================================
+        // UTILITY HELPERS & EXPORTS
+        // ============================================================
+        function toggleModalVisibility(id, show) {
+            const el = document.getElementById(id);
+            if (el) el.classList.toggle('hidden', !show);
+        }
+
+        function togglePasswordVisibility(id, btn) {
+            const input = document.getElementById(id);
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.innerHTML = `<i data-lucide="eye-off" class="w-4 h-4"></i>`;
+            } else {
+                input.type = 'password';
+                btn.innerHTML = `<i data-lucide="eye" class="w-4 h-4"></i>`;
+            }
+            lucide.createIcons();
+        }
+
+        function showDataNotification(icon, title, message, borderClass) {
+            const container = document.getElementById('dataNotifyContainer');
+            if (!container) return;
+            const toast = document.createElement('div');
+            toast.className = `pointer-events-auto glass-panel px-4 py-3 rounded-2xl border-l-4 ${borderClass} text-white shadow-2xl flex items-start gap-3 text-xs w-72 toast-animate`;
+            toast.innerHTML = `
+                <i data-lucide="${icon}" class="w-4 h-4 shrink-0 mt-0.5"></i>
+                <div class="flex-1 min-w-0">
+                    <div class="font-extrabold text-amber-400 uppercase tracking-wider">${escapeHTML(title)}</div>
+                    <div class="text-slate-300 mt-0.5 truncate">${escapeHTML(message)}</div>
+                </div>
+            `;
+            container.appendChild(toast);
+            lucide.createIcons();
+            setTimeout(() => toast.remove(), 4000);
+        }
+
+        function downloadJsonExport() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
+            const anchor = document.createElement('a');
+            anchor.setAttribute("href", dataStr);
+            anchor.setAttribute("download", `vinayaka_management_backup_${new Date().toISOString().split('T')[0]}.json`);
+            anchor.click();
+        }
+
+        function handleRestoreFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function() {
+                try {
+                    const parsed = JSON.parse(reader.result);
+                    Object.keys(parsed).forEach(k => {
+                        appState[k] = parsed[k];
+                        safeStorage.setItem('v2_' + k, typeof parsed[k] === 'object' ? JSON.stringify(parsed[k]) : parsed[k]);
+                    });
+                    appendAuditLog('Restored state from uploaded backup file');
+                    syncDataMatrices();
+                    showDataNotification('check-circle', 'Restored', 'Data successfully restored from JSON backup file.', 'border-emerald-400');
+                } catch (err) {
+                    alert('Invalid JSON backup file.');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function saveCoreSettingsConfig() {
+            appState.config.festivalName = document.getElementById('cfgFestivalName').value.trim();
+            appState.config.year = document.getElementById('cfgFestivalYear').value.trim();
+            appState.config.eventDate = document.getElementById('cfgEventDate').value;
+            appState.config.receiptPrefix = document.getElementById('cfgReceiptPrefix').value.trim();
+            appState.config.upi = document.getElementById('cfgUpiAddress').value.trim();
+
+            safeStorage.setItem('v2_config', JSON.stringify(appState.config));
+            appendAuditLog('Updated festival settings');
+            showDataNotification('settings', 'Settings Updated', 'Core configuration saved.', 'border-amber-400');
+        }
+
+        function toggleThemeMode() {
+            appState.themeMode = appState.themeMode === 'dark' ? 'light' : 'dark';
+            safeStorage.setItem('v2_theme', appState.themeMode);
+            const htmlTag = document.getElementById('htmlTag');
+            const themeIcon = document.getElementById('themeIcon');
+            if (appState.themeMode === 'light') {
+                htmlTag.classList.remove('dark'); htmlTag.classList.add('light');
+                themeIcon.setAttribute('data-lucide', 'sun');
+            } else {
+                htmlTag.classList.remove('light'); htmlTag.classList.add('dark');
+                themeIcon.setAttribute('data-lucide', 'moon');
+            }
+            lucide.createIcons();
+        }
+
+        // ============================================================
+        // ADDITIONAL HELPERS & PRINT / EXPORT IMPLEMENTATIONS
+        // ============================================================
+        function printDonationList() { window.print(); }
+        function printExpenseList() { window.print(); }
+        function printPrasadamList() { window.print(); }
+
+        let watchGpsId = null;
+        let userGpsMarker = null;
+
+        function toggleLiveGps() {
+            const btn = document.getElementById('liveGpsToggleBtn');
+            const label = document.getElementById('liveGpsToggleLabel');
+            if (watchGpsId !== null) {
+                navigator.geolocation.clearWatch(watchGpsId);
+                watchGpsId = null;
+                if (label) label.innerText = 'Start Live GPS';
+                if (btn) btn.className = 'bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl inline-flex items-center gap-1.5 shadow-lg';
+                showDataNotification('satellite', 'GPS Tracking Stopped', 'Live GPS updates paused.', 'border-slate-400');
+                return;
+            }
+
+            if (!navigator.geolocation) {
+                alert('Geolocation is not supported by your browser.');
+                return;
+            }
+
+            watchGpsId = navigator.geolocation.watchPosition(
+                pos => {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    if (processionMap) {
+                        if (!userGpsMarker) {
+                            userGpsMarker = L.circleMarker([lat, lng], { radius: 8, color: '#f43f5e', fillColor: '#f43f5e', fillOpacity: 0.8 }).addTo(processionMap);
+                        } else {
+                            userGpsMarker.setLatLng([lat, lng]);
+                        }
+                        processionMap.panTo([lat, lng]);
+                    }
+                    if (label) label.innerText = 'Stop Live GPS';
+                    if (btn) btn.className = 'bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl inline-flex items-center gap-1.5 shadow-lg';
+                },
+                err => {
+                    alert('GPS Location access error: ' + err.message);
+                },
+                { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }
+            );
+        }
+
+        async function searchStopAddress() {
+            const q = document.getElementById('stopAddressSearch').value.trim();
+            if (!q) return;
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`);
+                const data = await res.json();
+                if (data && data.length > 0) {
+                    const item = data[0];
+                    const lat = parseFloat(item.lat);
+                    const lon = parseFloat(item.lon);
+                    document.getElementById('pickedLocationBadge').classList.remove('hidden');
+                    document.getElementById('pickedLocationText').innerText = item.display_name;
+                    document.getElementById('newStopName').value = q;
+                    if (processionMap) processionMap.setView([lat, lon], 16);
+                } else {
+                    alert('Location not found. Try a different address search term.');
+                }
+            } catch (err) {
+                alert('Address search failed: ' + err.message);
+            }
+        }
+
+        function startProcession() {
+            appState.procession.startedAt = new Date().toISOString();
+            if (appState.procession.stops.length > 0) {
+                appState.procession.stops[0].status = 'reached';
+            }
+            safeStorage.setItem('v2_procession', JSON.stringify(appState.procession));
+            appendAuditLog('Started Nimarjan Procession');
+            renderProcessionUI();
+            showDataNotification('play', 'Procession Started', 'Nimarjan procession is officially live!', 'border-amber-400');
+        }
+
+        function advanceProcession() {
+            const stops = appState.procession.stops || [];
+            const idx = stops.findIndex(s => s.status === 'reached' || s.status === 'pending');
+            if (idx === -1) {
+                alert('All procession stops have been completed!');
+                return;
+            }
+            stops[idx].status = 'done';
+            if (idx + 1 < stops.length) {
+                stops[idx + 1].status = 'reached';
+            } else {
+                appState.procession.completedAt = new Date().toISOString();
+                appendAuditLog('Completed Nimarjan Procession');
+            }
+            safeStorage.setItem('v2_procession', JSON.stringify(appState.procession));
+            renderProcessionUI();
+        }
+
+        function resetProcession() {
+            if (!confirm('Reset all procession stop statuses to pending?')) return;
+            appState.procession.startedAt = null;
+            appState.procession.completedAt = null;
+            (appState.procession.stops || []).forEach(s => s.status = 'pending');
+            safeStorage.setItem('v2_procession', JSON.stringify(appState.procession));
+            renderProcessionUI();
+        }
+
+        function clearAuditLogs() {
+            if (!confirm('Clear all timeline audit log entries?')) return;
+            appState.logs = [];
+            safeStorage.setItem('v2_logs', JSON.stringify(appState.logs));
+            const logBox = document.getElementById('terminalLogBox');
+            if (logBox) logBox.innerHTML = '';
+            showDataNotification('trash-2', 'Logs Cleared', 'Audit timeline cleared.', 'border-rose-400');
+        }
+
+        function saveNotes() {
+            const text = document.getElementById('notesTextarea').value;
+            appState.notes = text;
+            safeStorage.setItem('v2_notes', text);
+            appendAuditLog('Updated Super Admin Notes');
+            showDataNotification('save', 'Notes Saved', 'Super Admin notepad updated.', 'border-emerald-400');
+        }
+
+        function uploadPermissionPdf(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (file.type !== 'application/pdf') { alert('Please select a valid PDF file.'); return; }
+            const reader = new FileReader();
+            reader.onload = function() {
+                appState.permissionPdf = {
+                    name: file.name,
+                    size: (file.size / 1024).toFixed(1) + ' KB',
+                    uploadedAt: new Date().toISOString(),
+                    url: reader.result
+                };
+                safeStorage.setItem('v2_permissionPdf', JSON.stringify(appState.permissionPdf));
+                appendAuditLog(`Uploaded permission PDF (${file.name})`);
+                renderPermissionPdfCard();
+                showDataNotification('file-text', 'PDF Uploaded', `Uploaded ${file.name}`, 'border-indigo-400');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function renderPermissionPdfCard() {
+            const empty = document.getElementById('permissionPdfEmpty');
+            const card = document.getElementById('permissionPdfCard');
+            if (!appState.permissionPdf) {
+                if (empty) empty.classList.remove('hidden');
+                if (card) card.classList.add('hidden');
+            } else {
+                if (empty) empty.classList.add('hidden');
+                if (card) card.classList.remove('hidden');
+                document.getElementById('permissionPdfName').innerText = appState.permissionPdf.name;
+                document.getElementById('permissionPdfMeta').innerText = `${appState.permissionPdf.size} • Uploaded ${appState.permissionPdf.uploadedAt.split('T')[0]}`;
+            }
+        }
+
+        function openPermissionPdf() {
+            if (!appState.permissionPdf || !appState.permissionPdf.url) return;
+            const win = window.open();
+            win.document.write(`<iframe src="${appState.permissionPdf.url}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+        }
+
+        function removePermissionPdf() {
+            if (!confirm('Remove uploaded permission PDF document?')) return;
+            appState.permissionPdf = null;
+            safeStorage.setItem('v2_permissionPdf', 'null');
+            renderPermissionPdfCard();
+        }
+
+        function downloadDonationsByDatePdf() {
+            const dateVal = document.getElementById('reportDonationDate').value;
+            const typeVal = document.getElementById('reportDonationType').value;
+            const { jsPDF } = window.jspdf || {};
+            if (!jsPDF) {
+                window.print();
+                return;
+            }
+
+            const doc = new jsPDF();
+            doc.setFontSize(16);
+            doc.text(`${appState.config.festivalName} Report`, 14, 20);
+            doc.setFontSize(10);
+            doc.text(`Report Date: ${dateVal || 'All Dates'} | Category: ${typeVal}`, 14, 28);
+
+            let y = 38;
+            let rows = [];
+
+            if (typeVal === 'expenses') {
+                rows = appState.expenses.filter(e => !dateVal || e.date === dateVal);
+                doc.text('Expenses Logged:', 14, y); y += 8;
+                rows.forEach(r => {
+                    doc.text(`${r.date} - ${r.description}: Rs. ${r.amount}`, 14, y);
+                    y += 6;
+                });
+            } else {
+                rows = appState.donations.filter(d => (!dateVal || d.date === dateVal) && (typeVal === 'all' || (typeVal === 'received' && d.status === 'Complete') || (typeVal === 'pending' && d.status === 'Pending')));
+                doc.text('Donation Entries:', 14, y); y += 8;
+                rows.forEach(r => {
+                    doc.text(`${r.id} | ${r.donor} | Rs. ${r.amount} | ${r.mode} | ${r.status}`, 14, y);
+                    y += 6;
+                });
+            }
+
+            doc.save(`Vinayaka_Report_${dateVal || 'Consolidated'}.pdf`);
+            showDataNotification('file-down', 'Report Exported', 'PDF report downloaded successfully.', 'border-emerald-400');
+        }
+
+        // ============================================================
+        // APP PROFILE & LIVE FESTIVAL COUNTDOWN ENGINE (14 SEPT 2026)
+        // ============================================================
+        function applyAppProfileAndLogo() {
+            const logoPath = appState.config.logoUrl || 'ganesha_profile.jpg';
+            
+            document.body.style.backgroundImage = `url('${logoPath}')`;
+            document.body.style.backgroundAttachment = 'fixed';
+            document.body.style.backgroundSize = 'cover';
+            document.body.style.backgroundPosition = 'center 10%';
+            document.body.style.imageRendering = '-webkit-optimize-contrast';
+
+            const logoImgs = [
+                { imgId: 'welcomeSplashLogoImg', iconId: 'welcomeSplashDefaultIcon' },
+                { imgId: 'portalLogoImg', iconId: 'portalLogoDefaultDot' },
+                { imgId: 'sidebarLogoImg', iconId: 'sidebarLogoDefaultIcon' }
+            ];
+
+            logoImgs.forEach(item => {
+                const img = document.getElementById(item.imgId);
+                const icon = document.getElementById(item.iconId);
+                if (img) {
+                    img.src = logoPath;
+                    img.classList.remove('hidden');
+                }
+                if (icon) {
+                    icon.classList.add('hidden');
+                }
+            });
+        }
+
+        let countdownIntervalId = null;
+        function initLiveFestivalCountdown() {
+            if (countdownIntervalId) clearInterval(countdownIntervalId);
+
+            function tick() {
+                const targetDateStr = appState.config.eventDate || '2026-09-14';
+                const targetTime = new Date(targetDateStr + 'T00:00:00+05:30').getTime();
+                const now = new Date().getTime();
+                const diff = targetTime - now;
+
+                const daysEl = document.getElementById('cdDays');
+                const hoursEl = document.getElementById('cdHours');
+                const minsEl = document.getElementById('cdMinutes');
+                const secsEl = document.getElementById('cdSeconds');
+                const labelEl = document.getElementById('dashboardCountdownLabel');
+
+                if (diff <= 0) {
+                    if (daysEl) daysEl.innerText = '0';
+                    if (hoursEl) hoursEl.innerText = '00';
+                    if (minsEl) minsEl.innerText = '00';
+                    if (secsEl) secsEl.innerText = '00';
+                    if (labelEl) labelEl.innerText = '🎉 FESTIVAL IS LIVE NOW!';
+                    return;
+                }
+
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+                if (daysEl) daysEl.innerText = days;
+                if (hoursEl) hoursEl.innerText = hours.toString().padStart(2, '0');
+                if (minsEl) minsEl.innerText = mins.toString().padStart(2, '0');
+                if (secsEl) secsEl.innerText = secs.toString().padStart(2, '0');
+            }
+
+            tick();
+            countdownIntervalId = setInterval(tick, 1000);
+        }
+
+        // ============================================================
+        // SESSION MANAGEMENT & INACTIVITY TIMEOUT ENGINE
+        // ============================================================
+        let lastUserActivityTime = Date.now();
+        const IDLE_SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 mins idle timeout
+
+        function trackUserActivity() {
+            lastUserActivityTime = Date.now();
+        }
+
+        ['mousemove', 'keydown', 'click', 'touchstart', 'scroll'].forEach(evt => {
+            window.addEventListener(evt, trackUserActivity, { passive: true });
+        });
+
+        setInterval(function() {
+            if (appState.authenticatedUser && (Date.now() - lastUserActivityTime > IDLE_SESSION_TIMEOUT_MS)) {
+                appendAuditLog('Session timed out due to 30 min idle inactivity.');
+                confirmLogout(true);
+            }
+        }, 30000);
+
+        // ============================================================
+        // APPLICATION WINDOW INITIALIZATION (STALE-WHILE-REVALIDATE)
+        // ============================================================
+        window.onload = async function() {
+            lucide.createIcons();
+            
+            // Apply Ganesha profile logo and live countdown timer
+            applyAppProfileAndLogo();
+            initLiveFestivalCountdown();
+
+            // Phase 1: Initialize SyncManager & start continuous background cloud sync immediately
+            SyncManager.init();
+            SyncManager.syncAll();
+            SyncManager.subscribeRealtime();
+
+            const restored = await SyncManager.restoreSession();
+            
+            // Hide splash screen smoothly
+            setTimeout(function() {
+                const splash = document.getElementById('welcomeSplash');
+                if (splash) {
+                    splash.style.opacity = '0';
+                    setTimeout(() => splash.style.display = 'none', 500);
+                }
+            }, 800);
+
+            if (restored) {
+                showAuthenticatedApp();
+            }
+        };
+    </script>
+</body>
+</html>
+
